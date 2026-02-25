@@ -46,7 +46,18 @@ The run method is at [droid_agent.py:120](droidrun/agent/droid/droid_agent.py#L1
 
 **Do not use backticks or HTML tags for code references. Always use markdown links.**
 
-## 3. Batch Related Changes Together
+## 3. Plan Mode Output Language
+
+When in plan mode, all output (plans, explanations, code comments, documentation) must be written in the user's preference language unless explicitly instructed otherwise.
+
+### Rule
+
+1. Check the user's preference language setting
+2. Write all plan outputs in that language
+3. Technical terms, code identifiers, and file paths should remain in their original form
+4. This applies to: plan files, implementation descriptions, summaries, and any documentation generated during planning
+
+## 4. Batch Related Changes Together
 
 When suggesting code modifications, avoid proposing overly granular changes within a single file. Group logically related changes together so users can better understand the overall change context.
 

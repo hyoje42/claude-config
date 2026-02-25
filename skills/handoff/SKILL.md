@@ -11,12 +11,18 @@ Capture the current conversation context so a fresh Claude instance can continue
 
 ## Handoff Workflow
 
+0. **Check existing handoff files** (if continuing work):
+   - Check if `handoffs/[task-slug]/` directory exists
+   - If exists, list all handoff files: `ls -lt handoffs/[task-slug]/ | grep HANDOFF`
+   - Read the most recent handoff file to understand previous progress
+   - Reference previous handoff when creating new one to maintain continuity
 1. **Analyze the conversation**: Review the full conversation history
 2. **Identify key elements**: Tasks attempted, what worked, what didn't work, current state
 3. **Create handoff file**: Save as `handoffs/[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md`
    - **IMPORTANT**: Always save files in the workspace's `handoffs` folder, NOT in `.claude` folder
    - Extract task name from conversation, convert to slug (lowercase, hyphens for spaces)
-   - Use current date and time (HANDOFF-YYYY-MM-DD-HHMMSS format) to prevent overwriting
+   - **Use Korea Standard Time (KST, UTC+9)**: Run `TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S"` to get accurate timestamp including seconds
+   - Use current KST date and time (HANDOFF-YYYY-MM-DD-HHMMSS format) to prevent overwriting
    - **CRITICAL**: Always check if file exists before writing. If exists, add incrementing number: `HANDOFF-YYYY-MM-DD-HHMMSS-2.md`
 4. **Provide summary**: Give the user a brief overview of what was captured
 
@@ -26,6 +32,14 @@ Create `handoffs/[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md` with the following st
 
 ```markdown
 # [Task/Topic] - HANDOFF
+
+## Reference Handoff (if continuing from previous handoff)
+
+**Previous Handoff**: `handoffs/[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md`
+
+This handoff continues work from a previous session. The following sections integrate previous progress with new developments.
+
+---
 
 ## Task Overview
 
@@ -220,16 +234,32 @@ ls -lt handoffs/knowledge-system-improvement/ | head -5  # Show recent files
 ## Creating the File
 
 ```bash
-# Ensure directory exists (replace [task-slug] with actual task name)
+# Step 1: Check for existing handoff files
+if [ -d "handoffs/[task-slug]" ]; then
+    echo "Existing handoff files found:"
+    ls -lt handoffs/[task-slug]/ | grep HANDOFF | head -5
+    # Read the latest handoff to reference previous work
+    LATEST=$(ls -t handoffs/[task-slug]/HANDOFF-*.md 2>/dev/null | head -1)
+    if [ -n "$LATEST" ]; then
+        echo "Reading latest handoff: $LATEST"
+        # Reference this file when creating new handoff
+    fi
+fi
+
+# Step 2: Ensure directory exists (replace [task-slug] with actual task name)
 # IMPORTANT: Always use workspace's handoffs folder, NOT `.claude` folder
 mkdir -p handoffs/[task-slug]
 
-# Use Write tool to create handoffs/[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md
-# Example: HANDOFF-2026-02-11-143022.md
+# Step 3: Generate KST timestamp (accurate to seconds)
+# Use KST timezone for accurate timestamp with seconds
+KST_TIME=$(TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S")
 
+# Step 4: Use Write tool to create handoffs/[task-slug]/HANDOFF-${KST_TIME}.md
 # Example for "Knowledge System Improvement" task:
 mkdir -p handoffs/knowledge-system-improvement
-# Then create: handoffs/knowledge-system-improvement/HANDOFF-2026-02-11-143022.md
+KST_TIME=$(TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S")
+# Then create: handoffs/knowledge-system-improvement/HANDOFF-${KST_TIME}.md
+# Example: HANDOFF-2026-02-11-143045.md (note: seconds are now accurate)
 ```
 
 ## Storage Location
@@ -247,3 +277,5 @@ mkdir -p handoffs/knowledge-system-improvement
 - [ ] Are file paths accurate?
 - [ ] Do issues/resolved sections include lessons learned?
 - [ ] Are resuming work steps clear?
+- [ ] Used KST timezone with seconds accuracy (if creating new handoff)
+- [ ] Referenced existing handoff file for continuity (if continuing work)

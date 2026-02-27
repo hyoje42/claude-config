@@ -32,19 +32,53 @@ When mentioning code in responses, use clickable markdown link format so users c
 
 ### Format
 
-- File: `[filename.py](path/to/filename.py)`
-- Specific line: `[filename.py:42](path/to/filename.py#L42)`
-- Line range: `[filename.py:42-51](path/to/filename.py#L42-L51)`
-- Directory: `[src/utils/](src/utils/)`
+Use **absolute paths in the link URL** but display **relative paths in the link text** for better readability:
+
+- File: `[path/to/filename.py](/absolute/path/to/filename.py)`
+- Specific line: `[path/to/filename.py:42](/absolute/path/to/filename.py#L42)`
+- Line range: `[path/to/filename.py:42-51](/absolute/path/to/filename.py#L42-L51)`
+- Directory: `[src/utils/](/absolute/path/to/src/utils/)`
+
+The workspace root is the current working directory (use `pwd` to check). Always use the actual absolute path from your environment.
 
 ### Example
 
+If your workspace root is `/home/user/project/`:
+
 ```markdown
-See the [DroidAgent class](droidrun/agent/droid/droid_agent.py).
-The run method is at [droid_agent.py:120](droidrun/agent/droid/droid_agent.py#L120).
+See the [Helper class](src/utils/helper.py).
+The run method is at [helper.py:120](/home/user/project/src/utils/helper.py#L120).
+Check [log.20240115:30527](/home/user/project/log.20240115#L30527) for details.
 ```
 
-**Do not use backticks or HTML tags for code references. Always use markdown links.**
+### Anti-Patterns (Common Mistakes)
+
+**❌ WRONG - Plain text without link (not clickable):**
+```markdown
+The code at helper.py:120 shows the issue.
+Check log.20240115:30527 for details.
+```
+
+**❌ WRONG - Backticks without link (not clickable):**
+```markdown
+The code at `helper.py:120` shows the issue.
+Check `log.20240115:30527` for details.
+```
+
+**❌ WRONG - Relative path in URL (won't work):**
+```markdown
+See [helper.py:120](src/utils/helper.py#L120).
+```
+
+**Why relative paths don't work:** Claude Code responses appear in a chat window, not as a file in the workspace. VSCode cannot determine the base directory for resolving relative paths from a chat message. Always use absolute paths.
+
+**✅ CORRECT - Absolute path in URL, relative in text:**
+```markdown
+See [helper.py:120](/home/user/project/src/utils/helper.py#L120).
+Check [log.20240115:30527](/home/user/project/log.20240115#L30527) for details.
+```
+
+**Do not use backticks or HTML tags for code references. Always use markdown links with absolute paths in the URL.**
 
 ## 3. Plan Mode Output Language
 

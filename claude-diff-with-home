@@ -1,0 +1,10 @@
+#!/bin/bash
+
+CLAUDE_REPO="/home/hyojelee/workspace/setting/claude"
+CLAUDE_HOME="$HOME/.claude"
+
+echo "Comparing rules..."
+diff -r "$CLAUDE_REPO/rules" "$CLAUDE_HOME/rules" 2>/dev/null || true
+echo ""
+echo "Comparing skills..."
+diff -r "$CLAUDE_REPO/skills" "$CLAUDE_HOME/skills" 2>/dev/null || true

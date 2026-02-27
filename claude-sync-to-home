@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CLAUDE_REPO="/home/hyojelee/workspace/setting/claude"
+CLAUDE_HOME="$HOME/.claude"
+
+# Check if there are any differences
+diff -r "$CLAUDE_REPO/rules" "$CLAUDE_HOME/rules" >/dev/null 2>&1
+rules_diff=$?
+
+diff -r "$CLAUDE_REPO/skills" "$CLAUDE_HOME/skills" >/dev/null 2>&1
+skills_diff=$?
+
+if [ $rules_diff -eq 0 ] && [ $skills_diff -eq 0 ]; then
+    echo "No changes."
+    exit 0
+fi
+
+echo "Copying rules and skills to ~/.claude..."
+[ $rules_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/rules" "$CLAUDE_HOME/"
+[ $skills_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/skills" "$CLAUDE_HOME/"
+echo "Done!"

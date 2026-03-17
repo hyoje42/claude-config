@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLAUDE_REPO="/home/hyojelee/workspace/setting/claude"
+CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_HOME="$HOME/.claude"
 
 # Check if there are any differences
@@ -10,12 +10,16 @@ rules_diff=$?
 diff -r "$CLAUDE_REPO/skills" "$CLAUDE_HOME/skills" >/dev/null 2>&1
 skills_diff=$?
 
-if [ $rules_diff -eq 0 ] && [ $skills_diff -eq 0 ]; then
+diff "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/settings.json" >/dev/null 2>&1
+settings_diff=$?
+
+if [ $rules_diff -eq 0 ] && [ $skills_diff -eq 0 ] && [ $settings_diff -eq 0 ]; then
     echo "No changes."
     exit 0
 fi
 
-echo "Copying rules and skills to ~/.claude..."
+echo "Copying rules, skills, and settings.json to ~/.claude..."
 [ $rules_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/rules" "$CLAUDE_HOME/"
 [ $skills_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/skills" "$CLAUDE_HOME/"
+[ $settings_diff -ne 0 ] && cp -v "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/"
 echo "Done!"

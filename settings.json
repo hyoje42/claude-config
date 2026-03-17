@@ -1,0 +1,26 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "<auth-token>",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:3456"
+  },
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Read(./**/*)",
+      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")"
+    ],
+    "deny": [
+      "Read(./.env*)",
+      "Read(./*.pem)",
+      "Read(./*.key)",
+      "Read(./credentials*.json)",
+      "Read(./secrets*)",
+      "Read(~/.ssh/*)",
+      "Read(~/.aws/*)",
+      "Read(~/.kube/*)",
+      "Read(./.npmrc)",
+      "Read(/etc/**)"
+    ]
+  },
+  "language": "korean"
+}

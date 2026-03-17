@@ -7,8 +7,7 @@
     "defaultMode": "default",
     "allow": [
       "Read(./**/*)",
-      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")",
-      "Bash(mkdir -p .claude/handoffs/*)"
+      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")"
     ],
     "deny": [
       "Read(./.env*)",

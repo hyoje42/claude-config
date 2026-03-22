@@ -1,49 +1,11 @@
-# Tool Usage Guidelines
+# Tool Usage Rules
 
-## 1. Edit Tool Parameter Types
+## 1. Prefer Relative Paths
 
-When using the Edit tool, always ensure parameters have the correct JSON data types. The most common error is passing boolean values as strings.
+When using file-related tools (Read, Edit, Write, Grep, Glob, Bash, etc.), always try relative paths from the workspace root first. Only fall back to absolute paths if the relative path fails or causes an error.
 
-### Critical Rule
+- Good: `Read("./src/utils/helper.py")`
+- Fallback (only if above fails): `Read("/home/user/project/src/utils/helper.py")`
+- Bad: Skipping relative path and going straight to absolute path
 
-**In JSON, boolean values must NOT be quoted:**
-- ✅ Correct: `true` or `false` (boolean)
-- ❌ Wrong: `"true"` or `"false"` (string)
-
-### Parameter Types for Edit Tool
-
-- `file_path`: string (required)
-- `old_string`: string (required)
-- `new_string`: string (required)
-- `replace_all`: **boolean** (optional, default: false)
-
-### Example
-
-**✅ Correct (boolean type):**
-```json
-{
-  "file_path": "/path/to/file.py",
-  "old_string": "old code",
-  "new_string": "new code",
-  "replace_all": false
-}
-```
-
-**❌ Wrong (string type):**
-```json
-{
-  "file_path": "/path/to/file.py",
-  "old_string": "old code",
-  "new_string": "new code",
-  "replace_all": "false"
-}
-```
-
-### Why This Matters
-
-The tool schema validation expects specific types. Passing `"false"` (string) instead of `false` (boolean) causes errors like:
-```
-The parameter `replace_all` type is expected as `boolean` but provided as `string`
-```
-
-**Always use proper JSON boolean values, not quoted strings.**
+Note: This applies to **tool call arguments** only. User-facing code reference links in responses should use absolute paths in URLs (see response-format rules).

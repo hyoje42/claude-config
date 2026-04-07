@@ -1,0 +1,3 @@
+[submodule "reference-skills"]
+	path = reference-skills
+	url = https://github.com/anthropics/skills.git

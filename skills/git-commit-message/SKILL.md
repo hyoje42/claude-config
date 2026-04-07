@@ -1,5 +1,5 @@
 ---
-name: generate-commit-message
+name: git-commit-message
 description: "Analyze staged git changes and generate commit messages. Use when user requests 'generate commit message', 'create commit', 'git commit', or wants to commit staged changes."
 ---
 

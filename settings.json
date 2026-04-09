@@ -131,5 +131,8 @@
       "Glob(./**/.git/hooks/*)"
     ]
   },
-  "language": "korean"
+  "language": "korean",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
 }

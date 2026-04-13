@@ -3,11 +3,88 @@
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_HOME="$HOME/.claude"
 
-echo "Comparing rules..."
-diff -r "$CLAUDE_REPO/rules" "$CLAUDE_HOME/rules" 2>/dev/null || true
+changed_files=()
+new_files=()
+deleted_files=()
+
+compare_file() {
+    local rel_path="$1"
+    local repo_file="$CLAUDE_REPO/$rel_path"
+    local home_file="$CLAUDE_HOME/$rel_path"
+
+    if [ ! -f "$home_file" ]; then
+        new_files+=("$rel_path")
+        return
+    fi
+
+    if ! diff -q "$repo_file" "$home_file" > /dev/null 2>&1; then
+        changed_files+=("$rel_path")
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  $rel_path"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        diff -u "$home_file" "$repo_file" --label "~/.claude/$rel_path" --label "repo/$rel_path" 2>/dev/null | tail -n +3
+        echo ""
+    fi
+}
+
+check_deleted() {
+    local dir="$1"
+    if [ ! -d "$CLAUDE_HOME/$dir" ]; then
+        return
+    fi
+    while IFS= read -r -d '' home_file; do
+        local rel_path="${home_file#$CLAUDE_HOME/}"
+        if [ ! -f "$CLAUDE_REPO/$rel_path" ]; then
+            deleted_files+=("$rel_path")
+        fi
+    done < <(find "$CLAUDE_HOME/$dir" -type f -print0 2>/dev/null)
+}
+
+# Compare all tracked files
 echo ""
-echo "Comparing skills..."
-diff -r "$CLAUDE_REPO/skills" "$CLAUDE_HOME/skills" 2>/dev/null || true
+echo "Comparing repo → ~/.claude ..."
 echo ""
-echo "Comparing settings.json..."
-diff "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/settings.json" 2>/dev/null || true
+
+while IFS= read -r -d '' repo_file; do
+    rel_path="${repo_file#$CLAUDE_REPO/}"
+    compare_file "$rel_path"
+done < <(find "$CLAUDE_REPO/rules" "$CLAUDE_REPO/skills" -type f -print0 2>/dev/null)
+
+compare_file "settings.json"
+
+# Check for files only in ~/.claude (deleted from repo)
+check_deleted "rules"
+check_deleted "skills"
+
+# Summary
+echo "==========================================="
+echo "  Summary"
+echo "==========================================="
+
+if [ ${#changed_files[@]} -eq 0 ] && [ ${#new_files[@]} -eq 0 ] && [ ${#deleted_files[@]} -eq 0 ]; then
+    echo "  No differences found."
+else
+    if [ ${#changed_files[@]} -gt 0 ]; then
+        echo ""
+        echo "  Modified (${#changed_files[@]}):"
+        for f in "${changed_files[@]}"; do
+            echo "    M  $f"
+        done
+    fi
+    if [ ${#new_files[@]} -gt 0 ]; then
+        echo ""
+        echo "  New in repo (${#new_files[@]}):"
+        for f in "${new_files[@]}"; do
+            echo "    +  $f"
+        done
+    fi
+    if [ ${#deleted_files[@]} -gt 0 ]; then
+        echo ""
+        echo "  Only in ~/.claude (${#deleted_files[@]}):"
+        for f in "${deleted_files[@]}"; do
+            echo "    -  $f"
+        done
+    fi
+fi
+
+echo ""

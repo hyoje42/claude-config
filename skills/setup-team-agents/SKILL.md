@@ -19,7 +19,11 @@ If the description is missing or ambiguous, ask the user to clarify the task.
 
 ## Workflow
 
+> **Your role is team designer and orchestrator, not researcher.** Do not read files, search code, or explore the codebase before spawning the team. Go straight from analyzing the description → designing the team → spawning agents. The agents themselves will do the research.
+
 ### 1. Analyze the Task
+
+**IMPORTANT**: Do NOT explore or search the codebase at this stage. Analyze the user's description text only. Codebase exploration is the spawned agents' job, not yours. If the description lacks detail, ask the user to clarify — do not attempt to fill gaps by reading code yourself.
 
 Extract from the description:
 
@@ -240,6 +244,8 @@ When the synthesizer completes:
 1. Read the synthesizer's final artifact from the workspace
 2. Present a summary to the user with a pointer to the full `.md` file
 3. Ask if the user wants revisions, additional rounds, or is satisfied
+
+**Do NOT terminate or stop the spawned agents after delivery.** Keep all team agents alive and wait for the user's explicit instruction. The user may want to ask follow-up questions, request additional rounds, or have agents elaborate on specific points. Only stop agents when the user explicitly says to dismiss/stop/end the team.
 
 ## Must Use Team Agents — Not Subagents
 

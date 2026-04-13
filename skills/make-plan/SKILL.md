@@ -16,21 +16,21 @@ Plans are meant to be reviewed by the user and referenced by future Claude sessi
 2. **Gather context**: Summarize problems found, discussion points, and attempts from the conversation so far
 3. **Explore the codebase**: Investigate relevant code and project structure needed for planning
 4. **Verify references**: If any files, documents, or prior plans are referenced, read them and cross-check against the actual code. Never trust reference material without verification.
-5. **Determine task name**: Extract a slug from the description (lowercase, hyphen-separated)
-6. **Check versions**: Look for existing plan files in the task folder and determine the next version number
+5. **Determine task name**: Extract a slug from the description (lowercase, hyphen-separated), prefix with KST date (`YYMMDD-{task-name}`) using `TZ='Asia/Seoul' date +"%y%m%d"`
+6. **Check versions**: Look for existing plan files in the task folder (search `*-{task-name}` to match any date-prefixed folder) and determine the next version number
 7. **Write the plan**: Create the markdown file
 8. **Report back**: Show the file path and a brief summary to the user
 
 ## File Naming Convention
 
 ```
-.plans/{task-name}/claude-plan.md        # first plan
-.plans/{task-name}/claude-plan-v2.md     # revised plan
-.plans/{task-name}/claude-plan-v3.md     # further revisions
+.plans/YYMMDD-{task-name}/claude-plan.md        # first plan
+.plans/YYMMDD-{task-name}/claude-plan-v2.md     # revised plan
+.plans/YYMMDD-{task-name}/claude-plan-v3.md     # further revisions
 ```
 
 - Filenames must start with `claude-` so other coding agents can identify the author
-- Task name is a slug derived from the description (e.g., "Add API auth" → `api-auth`)
+- Folder name is KST date prefix + slug derived from the description (e.g., "Add API auth" on 2026-04-13 → `260413-api-auth`)
 - First file has no version suffix; subsequent files use v2, v3, etc.
 
 ## Version Management
@@ -46,7 +46,8 @@ If plan files from other agents already exist (e.g., `codex-plan.md`, `cursor-pl
 
 ```bash
 # Check existing files (including files from other agents)
-ls .plans/{task-name}/ 2>/dev/null
+# Search by task-name suffix to find any date-prefixed folder
+ls .plans/*-{task-name}/ 2>/dev/null
 
 # Version examples
 # claude-plan.md only             → claude-plan-v2.md
@@ -114,5 +115,5 @@ ls .plans/{task-name}/ 2>/dev/null
 - Always include the Context section with conversation background — problems found, things tried, conclusions reached
 - Never modify existing plan files — always create a new version
 - **If `/make-plan` is called again for the same task within the same session, always create a new versioned file** — never overwrite
-- Create `.plans/` in the workspace root
+- Create `.plans/` in the workspace root, folder name prefixed with KST date (`YYMMDD-`)
 - Report the file path to the user after writing

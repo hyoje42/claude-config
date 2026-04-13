@@ -1,4 +1,9 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "language": "korean",
+  "skipDangerousModePermissionPrompt": true,
   "permissions": {
     "defaultMode": "default",
     "allow": [
@@ -29,7 +34,9 @@
       "Bash(git rev-parse HEAD)",
       "Bash(git config --list)",
       "Bash(git shortlog -sn)",
-      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")"
+      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")",
+      "Bash(TZ='Asia/Seoul' date +\"%y%m%d\")",
+      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d\")"
     ],
     "deny": [
       "Read(./.env*)",
@@ -130,9 +137,5 @@
       "Glob(./.git/hooks/*)",
       "Glob(./**/.git/hooks/*)"
     ]
-  },
-  "language": "korean",
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
 }

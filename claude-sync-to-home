@@ -2,6 +2,8 @@
 
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_HOME="$HOME/.claude"
+BACKUP_DIR="$CLAUDE_REPO/_backup"
+MAX_BACKUPS=5
 
 # Check if there are any differences
 diff -r "$CLAUDE_REPO/rules" "$CLAUDE_HOME/rules" >/dev/null 2>&1
@@ -18,8 +20,20 @@ if [ $rules_diff -eq 0 ] && [ $skills_diff -eq 0 ] && [ $settings_diff -eq 0 ]; 
     exit 0
 fi
 
-echo "Copying rules, skills, and settings.json to ~/.claude..."
-[ $rules_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/rules" "$CLAUDE_HOME/"
-[ $skills_diff -ne 0 ] && cp -rv "$CLAUDE_REPO/skills" "$CLAUDE_HOME/"
+# Backup current ~/.claude state before overwrite
+timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+backup_target="$BACKUP_DIR/$timestamp"
+mkdir -p "$backup_target"
+echo "Backing up ~/.claude state to _backup/$timestamp ..."
+[ -d "$CLAUDE_HOME/rules" ]         && cp -a "$CLAUDE_HOME/rules"         "$backup_target/"
+[ -d "$CLAUDE_HOME/skills" ]        && cp -a "$CLAUDE_HOME/skills"        "$backup_target/"
+[ -f "$CLAUDE_HOME/settings.json" ] && cp -a "$CLAUDE_HOME/settings.json" "$backup_target/"
+
+# Prune old backups, keeping the most recent $MAX_BACKUPS
+ls -1dt "$BACKUP_DIR"/*/ 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
+
+echo "Syncing rules, skills, and settings.json to ~/.claude..."
+[ $rules_diff -ne 0 ]    && rsync -av --delete "$CLAUDE_REPO/rules/"  "$CLAUDE_HOME/rules/"
+[ $skills_diff -ne 0 ]   && rsync -av --delete "$CLAUDE_REPO/skills/" "$CLAUDE_HOME/skills/"
 [ $settings_diff -ne 0 ] && cp -v "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/"
 echo "Done!"

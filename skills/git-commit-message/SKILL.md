@@ -21,6 +21,8 @@ description: "Analyze staged git changes and generate commit messages. Use when 
 - Keep it simple - avoid overly complex messages
 - Add body only when changes need explanation
 - Mark breaking changes explicitly
+- Do NOT add `Co-Authored-By: Claude` trailer or any AI co-author attribution
+- Do NOT add `🤖 Generated with Claude Code` or similar generator footers
 
 ## Response Format Template
 

@@ -4,19 +4,21 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 구조
 
-- `rules/` — Claude Code 전역 규칙 (응답 형식, 도구 사용, Python 가이드라인)
-- `skills/` — 커스텀 skill 정의
-- `settings.json` — 권한, 언어 등 Claude Code 설정
+- `home/` — `~/.claude/`로 그대로 sync되는 영역. 이 폴더 안의 구조는 `~/.claude/` 레이아웃을 미러링한다.
+  - `home/rules/` — Claude Code 전역 규칙 (응답 형식, 도구 사용, Python 가이드라인)
+  - `home/skills/` — 커스텀 skill 정의
+  - `home/settings.json` — 권한, 언어 등 Claude Code 설정
 - `reference-skills/` — [anthropics/skills](https://github.com/anthropics/skills) submodule (skill 작성 시 참고용, 수정 금지)
+- `CLAUDE.md` (이 문서) — repo 자체를 다룰 때 참고하는 meta 문서. **sync 대상 아님.**
 
 ## 스크립트
 
-- `claude-sync-to-home` — 이 repo의 rules, skills, settings.json을 `~/.claude/`로 복사
-- `claude-diff-with-home` — 이 repo와 `~/.claude/` 간 차이 확인
+- `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사
+- `claude-diff-with-home` — `home/`과 `~/.claude/` 간 차이 확인
 
 ## 작업 흐름
 
-1. 이 repo에서 rules/skills/settings.json 수정
+1. 이 repo의 `home/` 하위에서 rules/skills/settings.json 수정
 2. `./claude-diff-with-home`으로 차이 확인
 3. `./claude-sync-to-home`으로 `~/.claude/`에 반영
 4. Git commit으로 변경 이력 관리

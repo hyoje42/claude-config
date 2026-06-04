@@ -1,7 +1,12 @@
 #!/bin/bash
 
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_SRC="$CLAUDE_REPO/home"
 CLAUDE_HOME="$HOME/.claude"
+
+# Subdirectories we fully manage. Orphans (present in dest, absent in src) are
+# reported only for these — top-level dest files outside home/ are ignored.
+MANAGED_DIRS=(rules skills)
 
 changed_files=()
 new_files=()
@@ -9,7 +14,7 @@ deleted_files=()
 
 compare_file() {
     local rel_path="$1"
-    local repo_file="$CLAUDE_REPO/$rel_path"
+    local repo_file="$CLAUDE_SRC/$rel_path"
     local home_file="$CLAUDE_HOME/$rel_path"
 
     if [ ! -f "$home_file" ]; then
@@ -22,39 +27,34 @@ compare_file() {
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "  $rel_path"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        diff -u "$home_file" "$repo_file" --label "~/.claude/$rel_path" --label "repo/$rel_path" 2>/dev/null | tail -n +3
+        diff -u "$home_file" "$repo_file" --label "~/.claude/$rel_path" --label "repo/home/$rel_path" 2>/dev/null | tail -n +3
         echo ""
     fi
 }
 
-check_deleted() {
-    local dir="$1"
-    if [ ! -d "$CLAUDE_HOME/$dir" ]; then
-        return
-    fi
+echo ""
+echo "Comparing repo/home → ~/.claude ..."
+echo ""
+
+# Iterate every file in home/ (top-level files + managed subdirs both covered here)
+while IFS= read -r -d '' repo_file; do
+    rel_path="${repo_file#$CLAUDE_SRC/}"
+    compare_file "$rel_path"
+done < <(find "$CLAUDE_SRC" -type f -print0 2>/dev/null)
+
+# Orphans: files in ~/.claude/<managed>/ that are absent in home/
+for d in "${MANAGED_DIRS[@]}"; do
+    home_d="$CLAUDE_HOME/$d"
+    src_d="$CLAUDE_SRC/$d"
+    [ -d "$home_d" ] || continue
     while IFS= read -r -d '' home_file; do
-        local rel_path="${home_file#$CLAUDE_HOME/}"
-        if [ ! -f "$CLAUDE_REPO/$rel_path" ]; then
+        rel_in_dir="${home_file#$home_d/}"
+        rel_path="$d/$rel_in_dir"
+        if [ ! -f "$src_d/$rel_in_dir" ]; then
             deleted_files+=("$rel_path")
         fi
-    done < <(find "$CLAUDE_HOME/$dir" -type f -print0 2>/dev/null)
-}
-
-# Compare all tracked files
-echo ""
-echo "Comparing repo → ~/.claude ..."
-echo ""
-
-while IFS= read -r -d '' repo_file; do
-    rel_path="${repo_file#$CLAUDE_REPO/}"
-    compare_file "$rel_path"
-done < <(find "$CLAUDE_REPO/rules" "$CLAUDE_REPO/skills" -type f -print0 2>/dev/null)
-
-compare_file "settings.json"
-
-# Check for files only in ~/.claude (deleted from repo)
-check_deleted "rules"
-check_deleted "skills"
+    done < <(find "$home_d" -type f -print0 2>/dev/null)
+done
 
 # Summary
 echo "==========================================="

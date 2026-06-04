@@ -1,39 +1,77 @@
 #!/bin/bash
 
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_SRC="$CLAUDE_REPO/home"
 CLAUDE_HOME="$HOME/.claude"
 BACKUP_DIR="$CLAUDE_REPO/_backup"
 MAX_BACKUPS=5
 
-# Check if there are any differences
-diff -r "$CLAUDE_REPO/rules" "$CLAUDE_HOME/rules" >/dev/null 2>&1
-rules_diff=$?
+# Subdirectories we fully manage. Orphan files (present in dest but absent in src)
+# inside these are listed and offered for deletion with confirmation.
+MANAGED_DIRS=(rules skills)
 
-diff -r "$CLAUDE_REPO/skills" "$CLAUDE_HOME/skills" >/dev/null 2>&1
-skills_diff=$?
+list_orphans() {
+    local d="$1"
+    local home_d="$CLAUDE_HOME/$d"
+    local src_d="$CLAUDE_SRC/$d"
+    [ -d "$home_d" ] || return
+    while IFS= read -r -d '' f; do
+        rel="${f#$home_d/}"
+        [ -f "$src_d/$rel" ] || echo "$f"
+    done < <(find "$home_d" -type f -print0 2>/dev/null)
+}
 
-diff "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/settings.json" >/dev/null 2>&1
-settings_diff=$?
+# Detect what would change before doing anything
+sync_changes=$(rsync -an --itemize-changes "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
+    | grep -cE '^[<>ch]' || true)
+orphan_count=0
+for d in "${MANAGED_DIRS[@]}"; do
+    n=$(list_orphans "$d" | wc -l)
+    orphan_count=$((orphan_count + n))
+done
 
-if [ $rules_diff -eq 0 ] && [ $skills_diff -eq 0 ] && [ $settings_diff -eq 0 ]; then
+if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ]; then
     echo "No changes."
     exit 0
 fi
 
-# Backup current ~/.claude state before overwrite
+# Backup managed state before overwrite
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 backup_target="$BACKUP_DIR/$timestamp"
 mkdir -p "$backup_target"
-echo "Backing up ~/.claude state to _backup/$timestamp ..."
-[ -d "$CLAUDE_HOME/rules" ]         && cp -a "$CLAUDE_HOME/rules"         "$backup_target/"
-[ -d "$CLAUDE_HOME/skills" ]        && cp -a "$CLAUDE_HOME/skills"        "$backup_target/"
-[ -f "$CLAUDE_HOME/settings.json" ] && cp -a "$CLAUDE_HOME/settings.json" "$backup_target/"
+echo "Backing up managed parts of ~/.claude to _backup/$timestamp ..."
+for d in "${MANAGED_DIRS[@]}"; do
+    [ -d "$CLAUDE_HOME/$d" ] && cp -a "$CLAUDE_HOME/$d" "$backup_target/"
+done
+for f in "$CLAUDE_SRC"/*; do
+    [ -f "$f" ] || continue
+    bn=$(basename "$f")
+    [ -f "$CLAUDE_HOME/$bn" ] && cp -a "$CLAUDE_HOME/$bn" "$backup_target/"
+done
 
-# Prune old backups, keeping the most recent $MAX_BACKUPS
+# Prune old backups
 ls -1dt "$BACKUP_DIR"/*/ 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
 
-echo "Syncing rules, skills, and settings.json to ~/.claude..."
-[ $rules_diff -ne 0 ]    && rsync -av --delete "$CLAUDE_REPO/rules/"  "$CLAUDE_HOME/rules/"
-[ $skills_diff -ne 0 ]   && rsync -av --delete "$CLAUDE_REPO/skills/" "$CLAUDE_HOME/skills/"
-[ $settings_diff -ne 0 ] && cp -v "$CLAUDE_REPO/settings.json" "$CLAUDE_HOME/"
+# Sync home/ -> ~/.claude/ (add/update only; nothing in ~/.claude/ outside home/ is touched)
+echo ""
+echo "Syncing home/ -> ~/.claude/ ..."
+rsync -av "$CLAUDE_SRC/" "$CLAUDE_HOME/"
+
+# Orphan handling within managed subdirs (confirmed delete)
+for d in "${MANAGED_DIRS[@]}"; do
+    mapfile -t orphans < <(list_orphans "$d")
+    [ ${#orphans[@]} -gt 0 ] || continue
+    echo ""
+    echo "Orphan files in ~/.claude/$d/ (present in dest but not in repo home/$d/):"
+    for o in "${orphans[@]}"; do echo "  ${o#$CLAUDE_HOME/}"; done
+    read -r -p "Delete these ${#orphans[@]} file(s)? [y/N]: " ans
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+        for o in "${orphans[@]}"; do rm -v "$o"; done
+        find "$CLAUDE_HOME/$d" -type d -empty -delete 2>/dev/null || true
+    else
+        echo "Skipped."
+    fi
+done
+
+echo ""
 echo "Done!"

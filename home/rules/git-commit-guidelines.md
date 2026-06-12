@@ -6,6 +6,7 @@ Never run `git commit` on your own initiative. When asked to commit or to genera
 
 ## 2. Commit Message Format
 
+- **Always write commit messages in English**, even when the conversation is in another language
 - Follow conventional commit format (feat, fix, refactor, docs, test, chore, etc.)
 - Keep the title concise (under 50 characters) and in imperative mood ("add", not "added")
 - Add a body only when the change needs explanation; mark breaking changes explicitly

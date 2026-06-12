@@ -15,14 +15,14 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 스크립트
 
-- `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사
+- `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사. **사용자가 명시적으로 지시했을 때만 실행할 것.**
 - `claude-diff-with-home` — `home/`과 `~/.claude/` 간 차이 확인
 
 ## 작업 흐름
 
 1. 이 repo의 `home/` 하위에서 rules/skills/settings.json 수정
-2. `./claude-diff-with-home`으로 차이 확인
-3. `./claude-sync-to-home`으로 `~/.claude/`에 반영
+2. `./claude-diff-with-home`으로 차이 확인 후 사용자에게 결과 공유
+3. **사용자의 명시적 지시가 있을 때만** `./claude-sync-to-home`으로 `~/.claude/`에 반영 (스크립트 대신 수동 복사 등으로 `~/.claude/`를 변경하는 것도 동일하게 지시가 필요)
 4. Git commit으로 변경 이력 관리
 
 ## Skill 작성 가이드

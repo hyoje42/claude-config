@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_SRC="$CLAUDE_REPO/home"
 CLAUDE_HOME="$HOME/.claude"
@@ -10,18 +12,22 @@ MAX_BACKUPS=5
 # inside these are listed and offered for deletion with confirmation.
 MANAGED_DIRS=(rules skills)
 
+mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
+
 list_orphans() {
     local d="$1"
     local home_d="$CLAUDE_HOME/$d"
     local src_d="$CLAUDE_SRC/$d"
-    [ -d "$home_d" ] || return
+    # return 0 (not bare return) so the [ -d ] failure status doesn't propagate
+    # through the `n=$(... | wc -l)` pipefail and abort the script under set -e.
+    [ -d "$home_d" ] || return 0
     while IFS= read -r -d '' f; do
-        rel="${f#$home_d/}"
+        local rel="${f#$home_d/}"
         [ -f "$src_d/$rel" ] || echo "$f"
     done < <(find "$home_d" -type f -print0 2>/dev/null)
 }
 
-# Detect what would change before doing anything
+# Detect changes (rsync dry-run) and orphans before doing anything
 sync_changes=$(rsync -an --itemize-changes "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
     | grep -cE '^[<>ch]' || true)
 orphan_count=0
@@ -41,7 +47,11 @@ backup_target="$BACKUP_DIR/$timestamp"
 mkdir -p "$backup_target"
 echo "Backing up managed parts of ~/.claude to _backup/$timestamp ..."
 for d in "${MANAGED_DIRS[@]}"; do
-    [ -d "$CLAUDE_HOME/$d" ] && cp -a "$CLAUDE_HOME/$d" "$backup_target/"
+    src="$CLAUDE_HOME/$d"
+    [ -d "$src" ] || continue
+    dst="$backup_target/$d"
+    mkdir -p "$(dirname "$dst")"
+    cp -a "$src" "$dst"
 done
 for f in "$CLAUDE_SRC"/*; do
     [ -f "$f" ] || continue
@@ -50,21 +60,23 @@ for f in "$CLAUDE_SRC"/*; do
 done
 
 # Prune old backups
-ls -1dt "$BACKUP_DIR"/*/ 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
+find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r \
+    | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
 
 # Sync home/ -> ~/.claude/ (add/update only; nothing in ~/.claude/ outside home/ is touched)
 echo ""
 echo "Syncing home/ -> ~/.claude/ ..."
 rsync -av "$CLAUDE_SRC/" "$CLAUDE_HOME/"
 
-# Orphan handling within managed subdirs (confirmed delete)
+# Orphan handling within managed subdirs (confirmed delete).
+# `|| ans=""` keeps EOF on stdin (non-interactive runs) from aborting under set -e.
 for d in "${MANAGED_DIRS[@]}"; do
     mapfile -t orphans < <(list_orphans "$d")
     [ ${#orphans[@]} -gt 0 ] || continue
     echo ""
     echo "Orphan files in ~/.claude/$d/ (present in dest but not in repo home/$d/):"
     for o in "${orphans[@]}"; do echo "  ${o#$CLAUDE_HOME/}"; done
-    read -r -p "Delete these ${#orphans[@]} file(s)? [y/N]: " ans
+    read -r -p "Delete these ${#orphans[@]} file(s)? [y/N]: " ans || ans=""
     if [[ "$ans" =~ ^[Yy]$ ]]; then
         for o in "${orphans[@]}"; do rm -v "$o"; done
         find "$CLAUDE_HOME/$d" -type d -empty -delete 2>/dev/null || true

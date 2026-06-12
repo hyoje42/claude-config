@@ -1,288 +1,46 @@
 ---
 name: handoff
-description: "Use this skill when the user requests a handoff or summary of the current conversation context for continuing work in a fresh session. Trigger on requests like \"handoff\", \"save context\", \"summary for next session\", \"export conversation\", \"save work state\", or any request to capture the current state of work for later continuation. Use when the user wants to transfer context to a new Claude instance, save progress before ending a session, or provide a summary for another agent to continue the task. Do NOT use for general summarization, code explanation, or documentation unrelated to handoff purposes."
+description: "Use this skill when the user requests a handoff or summary of the current conversation context for continuing work in a fresh session. Trigger on requests like \"handoff\", \"save context\", \"summary for next session\", \"export conversation\", \"save work state\", or any request to capture the current state of work for later continuation. Use when the user wants to transfer context to a new Claude instance or another coding agent, save progress before ending a session, or provide a summary for another agent to continue the task. Do NOT use for general summarization, code explanation, or documentation unrelated to handoff purposes."
 ---
 
 # Handoff
 
 ## Purpose
 
-Capture the current conversation context so a fresh Claude instance can continue the work without missing any information.
+Capture the current conversation context so a fresh session — another Claude instance or a different coding agent — can continue the work without missing information.
 
-## Handoff Workflow
+## Storage Convention
 
-0. **Check existing handoff files** (if continuing work):
-   - Check if `.claude/handoffs/` directory exists and search for folders matching the task slug: `ls -d .claude/handoffs/*-[task-slug] 2>/dev/null`
-   - If exists, list all handoff files: `ls -lt .claude/handoffs/*-[task-slug]/ | grep HANDOFF`
-   - Read the most recent handoff file to understand previous progress
-   - Reference previous handoff when creating new one to maintain continuity
-1. **Analyze the conversation**: Review the full conversation history
-2. **Identify key elements**: Tasks attempted, what worked, what didn't work, current state
-3. **Create handoff file**: Save as `.claude/handoffs/YYMMDD-[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md`
-   - **IMPORTANT**: Always save files in the **project root's** `.claude/handoffs/` folder (NOT `~/.claude/` global folder)
-   - Extract task name from conversation, convert to slug (lowercase, hyphens for spaces)
-   - **Use Korea Standard Time (KST, UTC+9)**: Run `TZ='Asia/Seoul' date +"%y%m%d"` for folder date, `TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S"` for file timestamp
-   - Folder name uses KST date prefix (`YYMMDD-[task-slug]`) for chronological sorting
-   - Use current KST date and time (HANDOFF-YYYY-MM-DD-HHMMSS format) for file name to prevent overwriting
-   - **CRITICAL**: Always check if file exists before writing. If exists, add incrementing number: `HANDOFF-YYYY-MM-DD-HHMMSS-2.md`
-4. **Provide summary**: Give the user a brief overview of what was captured
+Handoffs live in the **project root's** `.handoffs/` directory, shared across coding agents:
 
-## Handoff Template
-
-Create `.claude/handoffs/YYMMDD-[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md` with the following structure:
-
-```markdown
-# [Task/Topic] - HANDOFF
-
-## Reference Handoff (if continuing from previous handoff)
-
-**Previous Handoff**: `.claude/handoffs/YYMMDD-[task-slug]/HANDOFF-YYYY-MM-DD-HHMMSS.md`
-
-This handoff continues work from a previous session. The following sections integrate previous progress with new developments.
-
----
-
-## Task Overview
-
-[Brief description of what this task is about - 1-2 sentences]
-
-## Current Progress (Date)
-
-### 1. Completed Tasks
-
-- ✅ [Completed task 1]
-- ✅ [Completed task 2]
-
-### 2. In Progress
-
-- 🔄 [In-progress task]
-- ⏳ [Pending task]
-
-### 3. Planned Improvements Summary
-
-- [List of planned improvements]
-
-## Identified Issues
-
-1. [Issue 1]
-2. [Issue 2]
-
-## Implementation Order
-
-### Phase 1 (Quick improvements - duration)
-1. [Task 1]
-2. [Task 2]
-
-### Phase 2 (Medium effort - duration)
-1. [Task 3]
-2. [Task 4]
-
-## Key File Modifications
-
-### Priority 1 (Core logic)
-- **✅ Completed**: filename - description
-- **⏳ In progress**: filename - description
-- **❌ Not started**: filename - description
-
-### Priority 2 (New features)
-- **❌ Not started**: filename - description
-
-## Notes
-
-### What Worked
-- [Successfully completed items]
-
-### Issues Encountered and Resolved
-- **Issue**: [The issue encountered]
-  - **Cause**: [Cause]
-  - **Resolution**: [How it was resolved]
-  - **Lesson**: [What was learned]
-
-### Current State
-- [Current work state]
-
-## Next Steps (Immediate Action Required)
-
-### 1. [Next step title]
-
-**File**: [filepath/filename]
-
-[Code or detailed description]
-
-## Resuming Work
-
-1. Read and understand this file
-2. [Next task]
-3. [Next task]
-
----
-
-**Note**: For resuming work, load the most recent handoff file for the task:
-```bash
-ls -dt .claude/handoffs/*-[task-slug] | head -5  # Show recent folders
-ls -lt .claude/handoffs/*-[task-slug]/HANDOFF-*.md | head -5  # Show recent files
 ```
+.handoffs/YYMMDD-{task-slug}/claude-handoff-YYYY-MM-DD-HHMMSS.md
 ```
 
-## Real Example
+- `YYMMDD` (folder date) — KST: `TZ='Asia/Seoul' date +"%y%m%d"`
+- `{task-slug}` — task name from the conversation, lowercase, hyphens for spaces
+- `claude-` filename prefix identifies the author, so handoffs from other agents (e.g. `codex-handoff-*.md`) can share the same task folder
+- Timestamp — KST: `TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S"`. If the exact filename already exists, append `-2`, `-3`, ...
+- **NEVER** save under `~/.claude/` (global folder). The project-level `.handoffs/` keeps handoffs project-specific, out of auto-loaded context, and git-trackable when desired.
 
-```markdown
-# DroidRun Knowledge System Improvement - HANDOFF
+## Workflow
 
-## Task Overview
+1. **Check existing handoffs** (when continuing work): search any date-prefixed folder for the task — `ls -dt .handoffs/*-{task-slug} 2>/dev/null | head -5`. Read the most recent handoff file **regardless of author prefix** and reference it in the new one for continuity.
+2. **Analyze the conversation**: tasks attempted, what worked, what didn't, current state.
+3. **Create the handoff file** at the path above, following the structure in [references/handoff-template.md](references/handoff-template.md).
+4. **Report back**: give the user the file path and a brief overview of what was captured.
 
-Analyze DroidRun's Knowledge storage and retrieval system, create improvement plan, and implement changes.
+## Writing Checklist
 
-## Current Progress (2026-02-10)
-
-### 1. Completed Tasks
-- ✅ Complete knowledge system structure analysis
-- ✅ Add quality tracking fields and methods to models.py
-- ✅ Ensure JSON compatibility in to_dict(), from_dict()
-
-### 2. In Progress
-- 🔄 Create quality.py file - KnowledgeQualityManager class implementation needed
-
-### 3. Planned Improvements Summary
-- Phase 1: Quality management (mostly complete)
-- Phase 2: Semantic search
-
-## Identified Issues
-1. Keyword matching only, cannot capture semantic similarity
-2. No feedback loop
-3. No version control
-
-## Implementation Order
-
-### Phase 1 (Quick improvements - 2 days)
-1. Create quality.py with KnowledgeQualityManager class
-2. Add version control to storage.py
-
-### Phase 2 (Medium effort - 1 week)
-1. Implement semantic search with embeddings
-2. Add feedback loop mechanism
-
-## Key File Modifications
-
-### Priority 1 (Core logic)
-- **✅ Completed**: models.py - Added quality tracking fields and JSON methods
-- **⏳ In progress**: quality.py - KnowledgeQualityManager class implementation
-- **❌ Not started**: storage.py - Version control for knowledge entries
-
-### Priority 2 (New features)
-- **❌ Not started**: semantic_search.py - Embedding-based search implementation
-
-## Notes
-
-### What Worked
-- Quality tracking fields fully implemented
-- JSON compatibility ensured
-
-### Issues Encountered and Resolved
-- **Issue**: User cancelled Edit operation
-  - **Cause**: Description was too brief
-  - **Resolution**: Changed to explanation-then-approval approach per response-format.md rules
-  - **Lesson**: Always provide detailed explanation before Edit call
-
-### Current State
-- Quality tracking fields and methods in models.py completed
-- Only quality.py creation remaining
-
-## Next Steps (Immediate Action Required)
-
-### 1. Create KnowledgeQualityManager
-
-**File**: droidrun/knowledge/quality.py
-
-```python
-from typing import List, Optional
-from .models import Shortcut, Tip, KnowledgePool
-
-class KnowledgeQualityManager:
-    def __init__(self,
-                 min_quality_score: float = 0.3,
-                 max_failure_count: int = 5,
-                 prune_unused_days: int = 90):
-        self.min_quality_score = min_quality_score
-        self.max_failure_count = max_failure_count
-        self.prune_unused_days = prune_unused_days
-
-    def prune_low_quality(self, pool: KnowledgePool) -> int:
-        # Pruning logic
-        pass
-```
-
-## Resuming Work
-1. Read and understand this file
-2. Create quality.py file
-3. Add version control to storage.py
-
----
-
-**Note**: For resuming work, load the most recent handoff file for the task:
-```bash
-ls -lt .claude/handoffs/*-knowledge-system-improvement/HANDOFF-*.md | head -5  # Show recent files
-```
-```
+- [ ] Task overview clear?
+- [ ] Completed (✅) / in-progress (🔄) / pending (⏳) tasks distinguished?
+- [ ] Identified issues listed?
+- [ ] Next steps include executable code with accurate file paths?
+- [ ] Failures and lessons recorded? Knowing what didn't work matters as much as what worked
+- [ ] Previous handoff referenced (if continuing work)?
 
 ## Best Practices
 
-- **Be specific**: Include exact file paths, code, and commands
-- **Focus on continuity**: Next agent should be able to continue without reading full conversation
-- **Include failures**: Knowing what didn't work is as important as what worked
-- **Keep it concise**: 100-300 lines - enough detail to continue, not a full transcript
-- **Actionable next steps**: Include code so next agent can start immediately
-
-## Creating the File
-
-```bash
-# Step 1: Check for existing handoff files
-# Use the project root's .claude/handoffs/ folder (NOT ~/.claude/ global folder)
-EXISTING=$(ls -d .claude/handoffs/*-[task-slug] 2>/dev/null | sort -r | head -1)
-if [ -n "$EXISTING" ]; then
-    echo "Existing handoff folder found: $EXISTING"
-    ls -lt "$EXISTING"/ | grep HANDOFF | head -5
-    # Read the latest handoff to reference previous work
-    LATEST=$(ls -t .claude/handoffs/*-[task-slug]/HANDOFF-*.md 2>/dev/null | head -1)
-    if [ -n "$LATEST" ]; then
-        echo "Reading latest handoff: $LATEST"
-        # Reference this file when creating new handoff
-    fi
-fi
-
-# Step 2: Generate KST date and timestamp
-# Use KST timezone: YYMMDD for folder, YYYY-MM-DD-HHMMSS for file
-KST_DATE=$(TZ='Asia/Seoul' date +"%y%m%d")
-KST_TIME=$(TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S")
-
-# Step 3: Ensure directory exists with date prefix (replace [task-slug] with actual task name)
-# IMPORTANT: Always use the project root's .claude/handoffs/ folder
-mkdir -p .claude/handoffs/${KST_DATE}-[task-slug]
-
-# Step 4: Use Write tool to create .claude/handoffs/${KST_DATE}-[task-slug]/HANDOFF-${KST_TIME}.md
-# Example for "Knowledge System Improvement" task:
-KST_DATE=$(TZ='Asia/Seoul' date +"%y%m%d")
-KST_TIME=$(TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S")
-mkdir -p .claude/handoffs/${KST_DATE}-knowledge-system-improvement
-# Then create: .claude/handoffs/260211-knowledge-system-improvement/HANDOFF-${KST_TIME}.md
-# Example: .claude/handoffs/260211-knowledge-system-improvement/HANDOFF-2026-02-11-143045.md
-```
-
-## Storage Location
-
-- **ALWAYS** save handoff files in the **project root's** `.claude/handoffs/` folder
-- **NEVER** save files in `~/.claude/` (global user folder) — only use the project-level `.claude/` directory
-- `.claude/handoffs/` is NOT auto-loaded into Claude's context, so it won't consume extra tokens
-- This ensures handoffs are project-specific and can be tracked in git when desired
-
-## HANDOFF.md Writing Checklist
-
-- [ ] Is task overview clear?
-- [ ] Are completed (✅), in-progress (🔄), and pending (⏳) tasks distinguished?
-- [ ] Is there a list of identified issues?
-- [ ] Do next steps include executable code?
-- [ ] Are file paths accurate?
-- [ ] Do issues/resolved sections include lessons learned?
-- [ ] Are resuming work steps clear?
-- [ ] Used KST timezone with seconds accuracy (if creating new handoff)
-- [ ] Referenced existing handoff file for continuity (if continuing work)
+- **Be specific**: exact file paths, code, and commands — the next agent should start immediately without rereading the full conversation.
+- **Keep it concise**: 100–300 lines. Enough detail to continue, not a transcript.
+- **Write tool-neutral**: the reader may not be a Claude instance. Avoid instructions that only work in this tool.

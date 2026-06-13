@@ -39,5 +39,5 @@ This file closes the loop: when the user starts a follow-up round, they provide 
 Notes:
 
 - Keep finding titles identical to the review file so rounds stay traceable.
-- This response records opinions only — `load-review` applies no fixes, so the work under review is unchanged at response time. Fixes the user orders afterwards will show up in the next round's target.
+- This response records opinions only — `read-review` applies no fixes, so the work under review is unchanged at response time. Fixes the user orders afterwards will show up in the next round's target.
 - Write tool-neutral: the reviewer may be a different coding agent.

@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.py"
+  - "**/pyproject.toml"
+  - "**/requirements*.txt"
+---
+
 # Python Guidelines
 
 ## 1. Virtual Environment

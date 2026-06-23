@@ -49,6 +49,25 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 > 내부 인프라 등 머신 종속 실제 값은 `local/`에만 두고 **절대 커밋하지 말 것.**
 
+## 규칙 로딩 (`home/rules/`)
+
+`home/rules/*.md`는 `~/.claude/`로 sync되어 Claude Code가 **매 세션 자동 로드**한다. 기본값은 본문 전체가 항상 컨텍스트에 올라가는 것이므로, 특정 맥락에서만 필요한 규칙은 frontmatter로 조건부 로딩해서 컨텍스트를 아낀다.
+
+- **전역 규칙**(frontmatter 없음): 매 세션 항상 로드. 예) `response-format.md`, `tool-usage.md`, `git-commit-guidelines.md`
+- **`paths:` 스코프 규칙**: 파일 최상단 YAML frontmatter에 `paths:` glob을 적으면, 매칭되는 파일을 **읽을 때만** 본문이 로드된다(그 전엔 컨텍스트에 없음). 좁은 맥락에서만 쓰는 규칙에 적용한다.
+  - `agent-instruction-files.md` → `**/AGENTS.md`, `**/CLAUDE.md` (지시 파일 작성 시)
+  - `python-guidelines.md` → `**/*.py` 등 (Python 작업 시)
+
+```markdown
+---
+paths:
+  - "**/*.py"
+---
+```
+
+- 규칙 파일 frontmatter는 **`paths:`만 지원**한다(`description`/`globs`/`alwaysApply` 등은 규칙에선 안 먹는다).
+- `CLAUDE.md`의 `@import`는 lazy가 아니라 **세션 시작 시 본문을 펼치는 eager 로딩**이라 컨텍스트 절약 효과가 없다. "필요할 때만 로드"는 `paths:` frontmatter로(절차·체크리스트형이면 skill로) 처리한다.
+
 ## Skill 작성 가이드
 
 새 skill은 반드시 `reference-skills/`의 공식 예제를 참고해서 만든다.

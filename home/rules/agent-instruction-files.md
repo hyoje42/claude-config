@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/AGENTS.md"
+  - "**/CLAUDE.md"
+---
+
 # Agent Instruction File Authoring
 
 How to author a project's agent instruction files (AGENTS.md / CLAUDE.md)

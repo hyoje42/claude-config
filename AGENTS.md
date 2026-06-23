@@ -11,6 +11,7 @@ Path map: only `home/` syncs to `~/.claude/` · `home/settings.json` is the shar
 - **settings.json is merged**: deep-merge `home/settings.json` (baseline) + `local/settings.override.json` (machine values) and write the result to `~/.claude/settings.json`. Do not put machine-specific values in the baseline.
 - **Machine-specific values**: commit only the `*.example` in `local/`. The real `settings.override.json` (broad permissions and other machine-specific values) is git-ignored — do not commit it. Keep it **strict JSON** (no comments — jq can't read JSONC, and `//` would clash with the `//` inside `http://` values).
 - **`home/CLAUDE.md` is intentionally empty** — do not fill it (global instructions are managed in `home/rules/`).
+- **Scope context-specific rules with `paths:`**: a rule in `home/rules/` that only applies in a narrow context (Python work, AGENTS.md/CLAUDE.md authoring, etc.) should carry `paths:` frontmatter so it loads only when a matching file is touched; keep truly global rules unscoped. `paths:` is the only supported field for rules, and `@import` loads eagerly (not lazily) — neither defers global rules. See [README.md](./README.md).
 - **Commit order**: commit in the submodule first → then commit the pointer bump in the parent.
 - **Do not port mechanisms**: do not move this merge approach to codex (seed-if-absent), or vice versa.
 - **Authoring skills**: build new skills using the official examples in `reference-skills/` (a reference-only submodule — do not edit it directly).

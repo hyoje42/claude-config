@@ -1,7 +1,9 @@
-# 백업 영역 (sync 대상 아님)
+# Editor
+.vscode/
+
+# Backup area (not synced)
 _backup
 
-# 머신 종속 설정 (각 머신 전용 값을 둔다 — git-ignored)
-# home/settings.json (공통 baseline)과 local/settings.override.json을 merge해서
-# ~/.claude/settings.json으로 동기화된다. 절대 커밋하지 말 것.
+# Machine-specific settings (git-ignored) — merged with the home/settings.json
+# baseline and synced to ~/.claude/settings.json. Never commit.
 settings.override.json

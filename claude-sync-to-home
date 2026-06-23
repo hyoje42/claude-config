@@ -8,55 +8,55 @@ CLAUDE_HOME="$HOME/.claude"
 BACKUP_DIR="$CLAUDE_REPO/_backup"
 MAX_BACKUPS=5
 
-# settings.json is special: ~/.claude/settings.json is the only file that
-# applies globally (every directory), so machine-specific values (proxy, corp
-# CA, broad permissions) must end up there — but without being committed. We
-# keep those values in a git-ignored override (local/settings.override.json)
-# and MERGE them onto the committed baseline (home/settings.json) at sync time.
+# settings.json은 특별하다: ~/.claude/settings.json은 전역(모든 디렉터리)으로
+# 적용되는 유일한 파일이라, 머신 종속 값(proxy, 사내 CA, 광범위 권한)은 반드시
+# 여기로 들어가야 한다 — 단 커밋되지 않은 채로. 그런 값은 git-ignored
+# override(local/settings.override.json)에 두고, sync 시점에 커밋된
+# baseline(home/settings.json) 위에 merge한다.
 #
-# When an override exists, settings.json is excluded from the plain rsync mirror
-# and produced by the merge step instead. When there is no override, there is
-# nothing to merge, so settings.json just mirrors like any other file.
+# override가 있으면 settings.json은 일반 rsync 미러링에서 제외되고 merge
+# 단계가 대신 만든다. override가 없으면 merge할 것이 없으므로 settings.json도
+# 다른 파일처럼 그냥 미러링된다.
 MERGE_HELPER="$CLAUDE_REPO/claude-merge-settings"
 LOCAL_OVERRIDE="$CLAUDE_REPO/local/settings.override.json"
 
-# The merge depends on jq. Fail loudly rather than silently mirroring the bare
-# baseline over the machine's settings (which would strip proxy/CA/permissions).
+# merge는 jq에 의존한다. 머신의 settings 위에 baseline만 조용히 미러링해
+# (proxy/CA/권한이 사라짐) 버리느니 요란하게 실패한다.
 command -v jq >/dev/null 2>&1 || {
-    echo "claude-sync-to-home: 'jq' is required to merge settings but was not found in PATH. Aborting to avoid clobbering the machine override." >&2
+    echo "claude-sync-to-home: settings merge에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다. 머신 override를 덮어쓰지 않도록 중단합니다." >&2
     exit 1
 }
 
-# Three states for the override: absent / valid / invalid.
-#   absent  → nothing to merge; settings.json mirrors the baseline as-is.
-#   valid   → merge baseline + override into ~/.claude/settings.json.
-#   invalid → present but not strict JSON (e.g. a stray // comment or trailing
-#             comma). Refuse to proceed: silently mirroring the bare baseline
-#             would drop the machine's proxy/CA/permissions with no warning.
+# override의 세 가지 상태: 없음 / 유효 / 무효.
+#   없음   → merge할 것 없음; settings.json은 baseline을 그대로 미러링한다.
+#   유효   → baseline + override를 ~/.claude/settings.json에 merge한다.
+#   무효   → 있지만 strict JSON이 아님(예: 떠도는 // 주석이나 끝 쉼표).
+#             진행을 거부한다: baseline만 조용히 미러링하면 경고 없이
+#             머신의 proxy/CA/권한이 사라진다.
 has_override=0
 if [ -f "$LOCAL_OVERRIDE" ]; then
     if jq -e 'type == "object"' "$LOCAL_OVERRIDE" >/dev/null 2>&1; then
         has_override=1
     else
-        echo "⚠ local/settings.override.json is not valid JSON." >&2
-        echo "  Refusing to sync — mirroring the bare baseline would strip this machine's proxy/CA/permissions." >&2
-        echo "  Fix it to strict JSON (remove // comments), or remove the file, then re-run." >&2
+        echo "⚠ local/settings.override.json이 유효한 JSON이 아닙니다." >&2
+        echo "  sync 거부 — baseline만 그대로 미러링하면 이 머신의 proxy/CA/권한이 사라집니다." >&2
+        echo "  strict JSON으로 고치거나(// 주석 제거) 파일을 삭제한 뒤 다시 실행하세요." >&2
         exit 1
     fi
 fi
 
-# Build rsync excludes. Always drop a stray home/settings.local.json (it would
-# only ever apply when claude runs from $HOME — a confusing no-op elsewhere).
-# When an override exists, also exclude settings.json (the merge writes it).
-# Leading '/' anchors the pattern to the transfer root so only the top-level
-# files are excluded (not some nested home/**/settings.json).
+# rsync 제외 목록을 만든다. 떠도는 home/settings.local.json은 항상 제외한다
+# (claude가 $HOME에서 실행될 때만 적용돼 — 다른 곳에선 헷갈리는 no-op).
+# override가 있으면 settings.json도 제외한다(merge가 그 파일을 쓴다).
+# 앞의 '/'는 패턴을 전송 루트에 고정해 최상위 파일만 제외하게 한다
+# (중첩된 home/**/settings.json은 제외하지 않음).
 rsync_excludes=(--exclude='/settings.local.json')
 if [ "$has_override" -eq 1 ]; then
     rsync_excludes+=(--exclude='/settings.json')
 fi
 
-# Subdirectories we fully manage. Orphan files (present in dest but absent in src)
-# inside these are listed and offered for deletion with confirmation.
+# 우리가 완전히 관리하는 하위 디렉터리. 이 안의 고아 파일(대상에는 있지만
+# 소스에는 없음)은 목록으로 보여주고 확인을 거쳐 삭제를 제안한다.
 MANAGED_DIRS=(rules skills)
 
 mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
@@ -65,8 +65,8 @@ list_orphans() {
     local d="$1"
     local home_d="$CLAUDE_HOME/$d"
     local src_d="$CLAUDE_SRC/$d"
-    # return 0 (not bare return) so the [ -d ] failure status doesn't propagate
-    # through the `n=$(... | wc -l)` pipefail and abort the script under set -e.
+    # bare return 대신 return 0을 써서 [ -d ] 실패 상태가
+    # `n=$(... | wc -l)`의 pipefail로 전파돼 set -e에서 스크립트를 중단시키지 않게 한다.
     [ -d "$home_d" ] || return 0
     while IFS= read -r -d '' f; do
         local rel="${f#$home_d/}"
@@ -74,7 +74,7 @@ list_orphans() {
     done < <(find "$home_d" -type f -print0 2>/dev/null)
 }
 
-# Detect changes (rsync dry-run) and orphans before doing anything
+# 무언가 하기 전에 변경 사항(rsync dry-run)과 고아 파일을 먼저 감지한다
 sync_changes=$(rsync -an --itemize-changes "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
     | grep -cE '^[<>ch]' || true)
 orphan_count=0
@@ -83,9 +83,9 @@ for d in "${MANAGED_DIRS[@]}"; do
     orphan_count=$((orphan_count + n))
 done
 
-# When an override exists, precompute the merged settings.json and see whether
-# it differs from what is already in ~/.claude. This is a real change even when
-# rsync reports none (e.g. only the override file changed).
+# override가 있으면 merge된 settings.json을 미리 계산해, 이미 ~/.claude에
+# 있는 것과 다른지 본다. 이것은 rsync가 변경 없음으로 보고할 때도 실제
+# 변경이다(예: override 파일만 바뀐 경우).
 merged_tmp=""
 settings_changed=0
 if [ "$has_override" -eq 1 ]; then
@@ -98,15 +98,15 @@ if [ "$has_override" -eq 1 ]; then
 fi
 
 if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ] && [ "$settings_changed" -eq 0 ]; then
-    echo "No changes."
+    echo "변경 사항 없음."
     exit 0
 fi
 
-# Backup managed state before overwrite
+# 덮어쓰기 전에 관리 대상 상태를 백업한다
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 backup_target="$BACKUP_DIR/$timestamp"
 mkdir -p "$backup_target"
-echo "Backing up ~/.claude → _backup/$timestamp"
+echo "~/.claude 백업 중 → _backup/$timestamp"
 for d in "${MANAGED_DIRS[@]}"; do
     src="$CLAUDE_HOME/$d"
     [ -d "$src" ] || continue
@@ -120,38 +120,38 @@ for f in "$CLAUDE_SRC"/*; do
     [ -f "$CLAUDE_HOME/$bn" ] && cp -a "$CLAUDE_HOME/$bn" "$backup_target/"
 done
 
-# Prune old backups
+# 오래된 백업 정리
 find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r \
     | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
 
-# Sync home/ -> ~/.claude/ (add/update only; nothing in ~/.claude/ outside home/ is touched)
+# home/ -> ~/.claude/ sync (추가/갱신만; ~/.claude/의 home/ 밖 파일은 건드리지 않음)
 echo ""
-echo "Syncing home/ → ~/.claude ..."
+echo "home/ → ~/.claude sync 중 ..."
 rsync -a "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/"
 
-# settings.json: when an override exists, write the merged result (baseline +
-# local override). With no override, rsync above already mirrored it normally.
+# settings.json: override가 있으면 merge 결과(baseline + 로컬 override)를 쓴다.
+# override가 없으면 위 rsync가 이미 정상적으로 미러링했다.
 if [ "$has_override" -eq 1 ] && [ "$settings_changed" -eq 1 ]; then
-    echo "✓ settings.json merged (baseline + local/settings.override.json) → ~/.claude/settings.json"
+    echo "✓ settings.json merge 완료 (baseline + local/settings.override.json) → ~/.claude/settings.json"
     cp "$merged_tmp" "$CLAUDE_HOME/settings.json"
 fi
 
-# Orphan handling within managed subdirs (confirmed delete).
-# `|| ans=""` keeps EOF on stdin (non-interactive runs) from aborting under set -e.
+# 관리 대상 하위 디렉터리 안의 고아 파일 처리 (확인 후 삭제).
+# `|| ans=""`로 stdin의 EOF(비대화형 실행)가 set -e에서 스크립트를 중단시키지 않게 한다.
 for d in "${MANAGED_DIRS[@]}"; do
     mapfile -t orphans < <(list_orphans "$d")
     [ ${#orphans[@]} -gt 0 ] || continue
     echo ""
-    echo "Orphan files in ~/.claude/$d/ (present in dest but not in repo home/$d/):"
+    echo "~/.claude/$d/의 고아 파일 (대상에는 있지만 repo home/$d/에는 없음):"
     for o in "${orphans[@]}"; do echo "  ${o#$CLAUDE_HOME/}"; done
-    read -r -p "Delete these ${#orphans[@]} file(s)? [y/N]: " ans || ans=""
+    read -r -p "이 ${#orphans[@]}개 파일을 삭제할까요? [y/N]: " ans || ans=""
     if [[ "$ans" =~ ^[Yy]$ ]]; then
         for o in "${orphans[@]}"; do rm -v "$o"; done
         find "$CLAUDE_HOME/$d" -type d -empty -delete 2>/dev/null || true
     else
-        echo "Skipped."
+        echo "건너뜀."
     fi
 done
 
 echo ""
-echo "Done!"
+echo "완료!"

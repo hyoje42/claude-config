@@ -6,24 +6,24 @@ CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_SRC="$CLAUDE_REPO/home"
 CLAUDE_HOME="$HOME/.claude"
 
-# settings.json is produced by merging the committed baseline (home/settings.json)
-# with a git-ignored machine override (local/settings.override.json). The diff
-# below compares the MERGED result against ~/.claude so it reflects what a sync
-# would actually write. See claude-merge-settings / claude-sync-to-home.
+# settings.json은 커밋된 baseline(home/settings.json)과 git-ignored 머신
+# override(local/settings.override.json)를 merge해 만든다. 아래 diff는 그
+# merge 결과를 ~/.claude와 비교하므로 sync가 실제로 쓸 내용을 반영한다.
+# claude-merge-settings / claude-sync-to-home 참고.
 MERGE_HELPER="$CLAUDE_REPO/claude-merge-settings"
 LOCAL_OVERRIDE="$CLAUDE_REPO/local/settings.override.json"
 
-# The settings.json comparison merges via jq; without it we cannot preview what
-# a sync would write. Fail loudly rather than silently showing the wrong thing.
+# settings.json 비교는 jq로 merge한다; jq가 없으면 sync가 쓸 내용을 미리
+# 보여줄 수 없다. 잘못된 내용을 조용히 보여주느니 요란하게 실패한다.
 command -v jq >/dev/null 2>&1 || {
-    echo "claude-diff-with-home: 'jq' is required to compare merged settings but was not found in PATH." >&2
+    echo "claude-diff-with-home: merge된 settings 비교에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다." >&2
     exit 1
 }
 
-# Override state, identical to claude-sync-to-home's gate: absent / valid / invalid.
-#   valid   → settings.json is compared as merged(baseline + override).
-#   absent  → compared against the raw baseline (what rsync mirrors verbatim).
-#   invalid → ignored here; sync would refuse. Banner warns; compared vs baseline.
+# override 상태, claude-sync-to-home의 게이트와 동일: 없음 / 유효 / 무효.
+#   유효   → settings.json을 merge(baseline + override) 결과로 비교한다.
+#   없음   → raw baseline(rsync가 그대로 미러링하는 것)과 비교한다.
+#   무효   → 여기선 무시; sync는 거부한다. 배너로 경고하고 baseline과 비교한다.
 OVERRIDE_STATE="absent"
 if [ -f "$LOCAL_OVERRIDE" ]; then
     if jq -e 'type == "object"' "$LOCAL_OVERRIDE" >/dev/null 2>&1; then
@@ -33,30 +33,29 @@ if [ -f "$LOCAL_OVERRIDE" ]; then
     fi
 fi
 
-# Friendly explanation of how settings.json is being compared. Printed both at
-# the top (before the diffs) and again near the Summary, so it stays visible
-# after scrolling through a long diff.
+# settings.json을 어떻게 비교하는지 친절히 설명한다. 맨 위(diff 앞)와
+# 요약 근처에서 모두 출력해, 긴 diff를 스크롤한 뒤에도 계속 보이게 한다.
 print_settings_note() {
     case "$OVERRIDE_STATE" in
         valid)
             local keys
             keys=$(jq -r 'keys_unsorted | join(", ")' "$LOCAL_OVERRIDE")
-            echo "ⓘ settings.json = home/settings.json (baseline) + local/settings.override.json (this machine: $keys)"
-            echo "   diff:  \"-\" current ~/.claude    \"+\" what sync will write"
+            echo "ⓘ settings.json = home/settings.json (baseline) + local/settings.override.json (이 머신: $keys)"
+            echo "   diff:  \"-\" 현재 ~/.claude    \"+\" sync가 쓸 내용"
             ;;
         invalid)
-            echo "⚠ local/settings.override.json is not valid JSON → ignored (comparing baseline only)."
-            echo "  sync will refuse until it's fixed.  Fix: remove // comments, then  jq . local/settings.override.json"
+            echo "⚠ local/settings.override.json이 유효한 JSON이 아님 → 무시됨 (baseline만 비교)."
+            echo "  고치기 전까지 sync가 거부합니다.  해결: // 주석 제거 후  jq . local/settings.override.json"
             ;;
         absent)
-            echo "ⓘ settings.json: no machine override — compared as the baseline (home/settings.json)."
-            echo "   add machine-only settings:  cp local/settings.override.json.example local/settings.override.json"
+            echo "ⓘ settings.json: 머신 override 없음 — baseline(home/settings.json)으로 비교."
+            echo "   머신 전용 설정 추가:  cp local/settings.override.json.example local/settings.override.json"
             ;;
     esac
 }
 
-# Subdirectories we fully manage. Orphans (present in dest, absent in src) are
-# reported only for these — top-level dest files outside home/ are ignored.
+# 우리가 완전히 관리하는 하위 디렉터리. 고아 파일(대상에는 있지만 소스에는
+# 없음)은 이들에 대해서만 보고한다 — home/ 밖의 최상위 대상 파일은 무시한다.
 MANAGED_DIRS=(rules skills)
 
 changed_files=()
@@ -68,9 +67,9 @@ compare_file() {
     local repo_file="$CLAUDE_SRC/$rel_path"
     local home_file="$CLAUDE_HOME/$rel_path"
 
-    # settings.json: only route through the merge when a USABLE override exists,
-    # so the comparison matches exactly what sync writes — merged result when
-    # valid, raw baseline (rsync's verbatim copy) when absent/invalid.
+    # settings.json: 사용 가능한 override가 있을 때만 merge 경로를 타서,
+    # 비교 결과가 sync가 쓰는 내용과 정확히 일치하게 한다 — 유효하면 merge
+    # 결과, 없거나 무효면 raw baseline(rsync가 그대로 복사하는 것).
     local cmp_src="$repo_file"
     local label_src="repo/home/$rel_path"
     local tmp=""
@@ -92,7 +91,7 @@ compare_file() {
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "  $rel_path"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        # `|| true` keeps diff's exit 1 (differences found) from aborting under set -e/pipefail
+        # `|| true`로 diff의 exit 1(차이 있음)이 set -e/pipefail에서 스크립트를 중단시키지 않게 한다
         { diff -u "$home_file" "$cmp_src" --label "~/.claude/$rel_path" --label "$label_src" 2>/dev/null || true; } | tail -n +3
         echo ""
     fi
@@ -101,18 +100,18 @@ compare_file() {
 }
 
 echo ""
-echo "Comparing repo/home → ~/.claude"
+echo "repo/home → ~/.claude 비교 중"
 echo ""
 print_settings_note
 echo ""
 
-# Iterate every file in home/ (top-level files + managed subdirs both covered here)
+# home/의 모든 파일을 순회한다 (최상위 파일 + 관리 대상 하위 디렉터리 모두 여기서 처리)
 while IFS= read -r -d '' repo_file; do
     rel_path="${repo_file#$CLAUDE_SRC/}"
     compare_file "$rel_path"
 done < <(find "$CLAUDE_SRC" -type f -print0 2>/dev/null)
 
-# Orphans: files in ~/.claude/<managed>/ that are absent in home/
+# 고아 파일: ~/.claude/<managed>/에 있지만 home/에는 없는 파일
 for d in "${MANAGED_DIRS[@]}"; do
     home_d="$CLAUDE_HOME/$d"
     src_d="$CLAUDE_SRC/$d"
@@ -126,44 +125,44 @@ for d in "${MANAGED_DIRS[@]}"; do
     done < <(find "$home_d" -type f -print0 2>/dev/null)
 done
 
-# Summary
+# 요약
 echo "==========================================="
-echo "  Summary"
+echo "  요약"
 echo "==========================================="
 
 if [ ${#changed_files[@]} -eq 0 ] && [ ${#new_files[@]} -eq 0 ] && [ ${#deleted_files[@]} -eq 0 ]; then
-    echo "  ✓ No differences — ~/.claude already matches."
+    echo "  ✓ 차이 없음 — ~/.claude가 이미 최신입니다."
 else
     if [ ${#changed_files[@]} -gt 0 ]; then
         echo ""
-        echo "  Modified (${#changed_files[@]}):"
+        echo "  변경됨 (${#changed_files[@]}):"
         for f in "${changed_files[@]}"; do
             echo "    M  $f"
         done
     fi
     if [ ${#new_files[@]} -gt 0 ]; then
         echo ""
-        echo "  New in repo (${#new_files[@]}):"
+        echo "  repo에 새로 추가 (${#new_files[@]}):"
         for f in "${new_files[@]}"; do
             echo "    +  $f"
         done
     fi
     if [ ${#deleted_files[@]} -gt 0 ]; then
         echo ""
-        echo "  Only in ~/.claude (${#deleted_files[@]}):"
+        echo "  ~/.claude에만 있음 (${#deleted_files[@]}):"
         for f in "${deleted_files[@]}"; do
             echo "    -  $f"
         done
     fi
 
-    # Short recap so the merge meaning stays visible after a long diff.
+    # 긴 diff 뒤에도 merge 의미가 보이도록 짧게 다시 안내한다.
     settings_touched=0
     for f in "${changed_files[@]}" "${new_files[@]}"; do
         [ "$f" = "settings.json" ] && settings_touched=1
     done
     if [ "$settings_touched" -eq 1 ]; then
         echo ""
-        echo "  ↳ \"+\" lines = what a sync writes to ~/.claude/settings.json."
+        echo "  ↳ \"+\" 라인 = sync가 ~/.claude/settings.json에 쓰는 내용."
     fi
 fi
 

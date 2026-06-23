@@ -6,6 +6,55 @@ CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_SRC="$CLAUDE_REPO/home"
 CLAUDE_HOME="$HOME/.claude"
 
+# settings.json is produced by merging the committed baseline (home/settings.json)
+# with a git-ignored machine override (local/settings.override.json). The diff
+# below compares the MERGED result against ~/.claude so it reflects what a sync
+# would actually write. See claude-merge-settings / claude-sync-to-home.
+MERGE_HELPER="$CLAUDE_REPO/claude-merge-settings"
+LOCAL_OVERRIDE="$CLAUDE_REPO/local/settings.override.json"
+
+# The settings.json comparison merges via jq; without it we cannot preview what
+# a sync would write. Fail loudly rather than silently showing the wrong thing.
+command -v jq >/dev/null 2>&1 || {
+    echo "claude-diff-with-home: 'jq' is required to compare merged settings but was not found in PATH." >&2
+    exit 1
+}
+
+# Override state, identical to claude-sync-to-home's gate: absent / valid / invalid.
+#   valid   → settings.json is compared as merged(baseline + override).
+#   absent  → compared against the raw baseline (what rsync mirrors verbatim).
+#   invalid → ignored here; sync would refuse. Banner warns; compared vs baseline.
+OVERRIDE_STATE="absent"
+if [ -f "$LOCAL_OVERRIDE" ]; then
+    if jq -e 'type == "object"' "$LOCAL_OVERRIDE" >/dev/null 2>&1; then
+        OVERRIDE_STATE="valid"
+    else
+        OVERRIDE_STATE="invalid"
+    fi
+fi
+
+# Friendly explanation of how settings.json is being compared. Printed both at
+# the top (before the diffs) and again near the Summary, so it stays visible
+# after scrolling through a long diff.
+print_settings_note() {
+    case "$OVERRIDE_STATE" in
+        valid)
+            local keys
+            keys=$(jq -r 'keys_unsorted | join(", ")' "$LOCAL_OVERRIDE")
+            echo "ⓘ settings.json = home/settings.json (baseline) + local/settings.override.json (this machine: $keys)"
+            echo "   diff:  \"-\" current ~/.claude    \"+\" what sync will write"
+            ;;
+        invalid)
+            echo "⚠ local/settings.override.json is not valid JSON → ignored (comparing baseline only)."
+            echo "  sync will refuse until it's fixed.  Fix: remove // comments, then  jq . local/settings.override.json"
+            ;;
+        absent)
+            echo "ⓘ settings.json: no machine override — compared as the baseline (home/settings.json)."
+            echo "   add machine-only settings:  cp local/settings.override.json.example local/settings.override.json"
+            ;;
+    esac
+}
+
 # Subdirectories we fully manage. Orphans (present in dest, absent in src) are
 # reported only for these — top-level dest files outside home/ are ignored.
 MANAGED_DIRS=(rules skills)
@@ -19,24 +68,42 @@ compare_file() {
     local repo_file="$CLAUDE_SRC/$rel_path"
     local home_file="$CLAUDE_HOME/$rel_path"
 
+    # settings.json: only route through the merge when a USABLE override exists,
+    # so the comparison matches exactly what sync writes — merged result when
+    # valid, raw baseline (rsync's verbatim copy) when absent/invalid.
+    local cmp_src="$repo_file"
+    local label_src="repo/home/$rel_path"
+    local tmp=""
+    if [ "$rel_path" = "settings.json" ] && [ "$OVERRIDE_STATE" = "valid" ]; then
+        tmp="$(mktemp)"
+        "$MERGE_HELPER" "$repo_file" "$LOCAL_OVERRIDE" > "$tmp"
+        cmp_src="$tmp"
+        label_src="merged (home/settings.json + local/settings.override.json)"
+    fi
+
     if [ ! -f "$home_file" ]; then
         new_files+=("$rel_path")
+        [ -z "$tmp" ] || rm -f "$tmp"
         return
     fi
 
-    if ! diff -q "$repo_file" "$home_file" > /dev/null 2>&1; then
+    if ! diff -q "$cmp_src" "$home_file" > /dev/null 2>&1; then
         changed_files+=("$rel_path")
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "  $rel_path"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         # `|| true` keeps diff's exit 1 (differences found) from aborting under set -e/pipefail
-        { diff -u "$home_file" "$repo_file" --label "~/.claude/$rel_path" --label "repo/home/$rel_path" 2>/dev/null || true; } | tail -n +3
+        { diff -u "$home_file" "$cmp_src" --label "~/.claude/$rel_path" --label "$label_src" 2>/dev/null || true; } | tail -n +3
         echo ""
     fi
+
+    [ -z "$tmp" ] || rm -f "$tmp"
 }
 
 echo ""
-echo "Comparing repo/home → ~/.claude ..."
+echo "Comparing repo/home → ~/.claude"
+echo ""
+print_settings_note
 echo ""
 
 # Iterate every file in home/ (top-level files + managed subdirs both covered here)
@@ -65,7 +132,7 @@ echo "  Summary"
 echo "==========================================="
 
 if [ ${#changed_files[@]} -eq 0 ] && [ ${#new_files[@]} -eq 0 ] && [ ${#deleted_files[@]} -eq 0 ]; then
-    echo "  No differences found."
+    echo "  ✓ No differences — ~/.claude already matches."
 else
     if [ ${#changed_files[@]} -gt 0 ]; then
         echo ""
@@ -87,6 +154,16 @@ else
         for f in "${deleted_files[@]}"; do
             echo "    -  $f"
         done
+    fi
+
+    # Short recap so the merge meaning stays visible after a long diff.
+    settings_touched=0
+    for f in "${changed_files[@]}" "${new_files[@]}"; do
+        [ "$f" = "settings.json" ] && settings_touched=1
+    done
+    if [ "$settings_touched" -eq 1 ]; then
+        echo ""
+        echo "  ↳ \"+\" lines = what a sync writes to ~/.claude/settings.json."
     fi
 fi
 

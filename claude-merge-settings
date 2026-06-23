@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+# claude-merge-settings — deep-merge a base settings.json with a machine-local
+# override and print the merged JSON to stdout.
+#
+# This exists because Claude Code only applies *user-level* settings globally
+# via ~/.claude/settings.json. There is no reliable user-level local override
+# file (~/.claude/settings.local.json behaves as a project-local file and only
+# applies when claude runs from $HOME). So to keep machine-specific values
+# (proxy, corp CA, broad permissions) out of git while still applying them
+# everywhere, we merge them into ~/.claude/settings.json at sync time.
+#
+# Merge semantics (mirror Claude Code's runtime settings layering):
+#   - objects : merged key-by-key, recursively
+#   - arrays  : union; base order preserved, override-only items appended
+#               (e.g. permissions.allow / permissions.deny)
+#   - scalars : override wins
+#
+# Usage: claude-merge-settings <base.json> [override.json]
+#   - base is required and must be strict JSON (an object).
+#   - override is optional. If it is missing, empty, or not a JSON object,
+#     base is emitted unchanged.
+#
+# NOTE: both inputs must be STRICT JSON (no // or /* */ comments). jq cannot
+# parse JSONC, and naive comment stripping would corrupt values such as
+# "http://host:port". Keep the real settings.local.json comment-free.
+
+set -euo pipefail
+
+BASE="${1:?usage: claude-merge-settings <base.json> [override.json]}"
+OVERRIDE="${2:-}"
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "claude-merge-settings: 'jq' is required but was not found in PATH." >&2
+    exit 1
+fi
+
+if [ ! -f "$BASE" ]; then
+    echo "claude-merge-settings: base file not found: $BASE" >&2
+    exit 1
+fi
+if ! jq -e 'type == "object"' "$BASE" >/dev/null 2>&1; then
+    echo "claude-merge-settings: base is not a JSON object (or invalid JSON): $BASE" >&2
+    exit 1
+fi
+
+# No usable override → emit base unchanged (normalized through jq).
+if [ -z "$OVERRIDE" ] || [ ! -f "$OVERRIDE" ] || ! jq -e 'type == "object"' "$OVERRIDE" >/dev/null 2>&1; then
+    if [ -n "$OVERRIDE" ] && [ -f "$OVERRIDE" ]; then
+        echo "claude-merge-settings: override is not a JSON object (or invalid JSON); ignoring it: $OVERRIDE" >&2
+    fi
+    jq '.' "$BASE"
+    exit 0
+fi
+
+# Deep-merge base (.[0]) with override (.[1]).
+jq -s '
+  # $a/$b force the filter arguments to be evaluated to VALUES once and bound,
+  # so recursion stays correct as "." changes inside the reduce. (Plain a/b are
+  # call-by-name filters and would re-evaluate against the accumulator.)
+  def deepmerge($a; $b):
+    if   ($a | type) == "object" and ($b | type) == "object" then
+      reduce ($b | keys_unsorted[]) as $k ($a;
+        .[$k] = (if ($a | has($k)) then deepmerge($a[$k]; $b[$k]) else $b[$k] end))
+    elif ($a | type) == "array"  and ($b | type) == "array"  then
+      $a + ($b - $a)
+    else
+      $b
+    end;
+  deepmerge(.[0]; .[1])
+' "$BASE" "$OVERRIDE"

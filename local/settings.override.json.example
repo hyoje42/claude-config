@@ -1,0 +1,45 @@
+{
+  // ── 머신 종속 Claude 설정(override) 템플릿 ─────────────────────────────
+  // 사용법: 이 파일을 복사 → 주석을 모두 지우고 strict JSON 으로 만든 뒤
+  //   local/settings.override.json   (git-ignored)
+  // 에 저장한다. claude-sync-to-home 실행 시
+  //   home/settings.json (공통 baseline, 커밋)  +  local/settings.override.json (이 값)
+  // 을 claude-merge-settings 로 deep-merge 해서 ~/.claude/settings.json 에 쓴다.
+  //   · 객체: 키 병합  · 배열(permissions.allow 등): 합집합  · 스칼라: override 우선
+  // override 가 없으면 settings.json 은 그냥 baseline 그대로 sync 된다.
+  //
+  // 왜 settings.json 에 합치나: ~/.claude/settings.json 만 모든 디렉터리에서
+  // 전역 적용된다. (~/.claude/settings.local.json 은 홈에서 실행할 때만 먹는 함정)
+  //
+  // ⚠ 실제 local/settings.override.json 에는 주석(//)을 넣지 말 것 — jq 가 JSONC 를
+  //   못 읽고, "http://..." 같은 값 안의 // 와도 충돌한다. 이 .example 만 주석을 둔다.
+  //   주석은 모두 전체 줄 단위이니 그 줄들을 통째로 지우면 된다(값 안의 // 는 건드리지 말 것).
+  //   작성 후 `jq . local/settings.override.json` 로 strict JSON 인지 검증할 것.
+  // ⚠ 실제 프록시 IP / 사내 CA 절대경로는 local/ 안에만 두고 절대 커밋하지 말 것.
+  // 참고: docs/codex-proxy-ssl-login.md (프록시·사내 CA 근거)
+
+  "env": {
+    "HTTPS_PROXY": "http://<PROXY_HOST>:<PORT>",
+    "HTTP_PROXY": "",
+    "https_proxy": "http://<PROXY_HOST>:<PORT>",
+    "http_proxy": "",
+    "ALL_PROXY": "",
+    "all_proxy": "",
+    "NO_PROXY": "localhost,127.0.0.1,<corp-domains-and-ip-ranges>,::1",
+    "no_proxy": "localhost,127.0.0.1,<corp-domains-and-ip-ranges>,::1",
+    "NODE_EXTRA_CA_CERTS": "/absolute/path/to/corp-ca-bundle.pem",
+    "CLAUDE_CODE_CERT_STORE": "bundled,system"
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

@@ -8,6 +8,53 @@ CLAUDE_HOME="$HOME/.claude"
 BACKUP_DIR="$CLAUDE_REPO/_backup"
 MAX_BACKUPS=5
 
+# settings.json is special: ~/.claude/settings.json is the only file that
+# applies globally (every directory), so machine-specific values (proxy, corp
+# CA, broad permissions) must end up there — but without being committed. We
+# keep those values in a git-ignored override (local/settings.override.json)
+# and MERGE them onto the committed baseline (home/settings.json) at sync time.
+#
+# When an override exists, settings.json is excluded from the plain rsync mirror
+# and produced by the merge step instead. When there is no override, there is
+# nothing to merge, so settings.json just mirrors like any other file.
+MERGE_HELPER="$CLAUDE_REPO/claude-merge-settings"
+LOCAL_OVERRIDE="$CLAUDE_REPO/local/settings.override.json"
+
+# The merge depends on jq. Fail loudly rather than silently mirroring the bare
+# baseline over the machine's settings (which would strip proxy/CA/permissions).
+command -v jq >/dev/null 2>&1 || {
+    echo "claude-sync-to-home: 'jq' is required to merge settings but was not found in PATH. Aborting to avoid clobbering the machine override." >&2
+    exit 1
+}
+
+# Three states for the override: absent / valid / invalid.
+#   absent  → nothing to merge; settings.json mirrors the baseline as-is.
+#   valid   → merge baseline + override into ~/.claude/settings.json.
+#   invalid → present but not strict JSON (e.g. a stray // comment or trailing
+#             comma). Refuse to proceed: silently mirroring the bare baseline
+#             would drop the machine's proxy/CA/permissions with no warning.
+has_override=0
+if [ -f "$LOCAL_OVERRIDE" ]; then
+    if jq -e 'type == "object"' "$LOCAL_OVERRIDE" >/dev/null 2>&1; then
+        has_override=1
+    else
+        echo "⚠ local/settings.override.json is not valid JSON." >&2
+        echo "  Refusing to sync — mirroring the bare baseline would strip this machine's proxy/CA/permissions." >&2
+        echo "  Fix it to strict JSON (remove // comments), or remove the file, then re-run." >&2
+        exit 1
+    fi
+fi
+
+# Build rsync excludes. Always drop a stray home/settings.local.json (it would
+# only ever apply when claude runs from $HOME — a confusing no-op elsewhere).
+# When an override exists, also exclude settings.json (the merge writes it).
+# Leading '/' anchors the pattern to the transfer root so only the top-level
+# files are excluded (not some nested home/**/settings.json).
+rsync_excludes=(--exclude='/settings.local.json')
+if [ "$has_override" -eq 1 ]; then
+    rsync_excludes+=(--exclude='/settings.json')
+fi
+
 # Subdirectories we fully manage. Orphan files (present in dest but absent in src)
 # inside these are listed and offered for deletion with confirmation.
 MANAGED_DIRS=(rules skills)
@@ -28,7 +75,7 @@ list_orphans() {
 }
 
 # Detect changes (rsync dry-run) and orphans before doing anything
-sync_changes=$(rsync -an --itemize-changes "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
+sync_changes=$(rsync -an --itemize-changes "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
     | grep -cE '^[<>ch]' || true)
 orphan_count=0
 for d in "${MANAGED_DIRS[@]}"; do
@@ -36,7 +83,21 @@ for d in "${MANAGED_DIRS[@]}"; do
     orphan_count=$((orphan_count + n))
 done
 
-if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ]; then
+# When an override exists, precompute the merged settings.json and see whether
+# it differs from what is already in ~/.claude. This is a real change even when
+# rsync reports none (e.g. only the override file changed).
+merged_tmp=""
+settings_changed=0
+if [ "$has_override" -eq 1 ]; then
+    merged_tmp="$(mktemp)"
+    trap 'rm -f "$merged_tmp"' EXIT
+    "$MERGE_HELPER" "$CLAUDE_SRC/settings.json" "$LOCAL_OVERRIDE" > "$merged_tmp"
+    if [ ! -f "$CLAUDE_HOME/settings.json" ] || ! cmp -s "$merged_tmp" "$CLAUDE_HOME/settings.json"; then
+        settings_changed=1
+    fi
+fi
+
+if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ] && [ "$settings_changed" -eq 0 ]; then
     echo "No changes."
     exit 0
 fi
@@ -45,7 +106,7 @@ fi
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 backup_target="$BACKUP_DIR/$timestamp"
 mkdir -p "$backup_target"
-echo "Backing up managed parts of ~/.claude to _backup/$timestamp ..."
+echo "Backing up ~/.claude → _backup/$timestamp"
 for d in "${MANAGED_DIRS[@]}"; do
     src="$CLAUDE_HOME/$d"
     [ -d "$src" ] || continue
@@ -65,8 +126,15 @@ find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r \
 
 # Sync home/ -> ~/.claude/ (add/update only; nothing in ~/.claude/ outside home/ is touched)
 echo ""
-echo "Syncing home/ -> ~/.claude/ ..."
-rsync -av "$CLAUDE_SRC/" "$CLAUDE_HOME/"
+echo "Syncing home/ → ~/.claude ..."
+rsync -a "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/"
+
+# settings.json: when an override exists, write the merged result (baseline +
+# local override). With no override, rsync above already mirrored it normally.
+if [ "$has_override" -eq 1 ] && [ "$settings_changed" -eq 1 ]; then
+    echo "✓ settings.json merged (baseline + local/settings.override.json) → ~/.claude/settings.json"
+    cp "$merged_tmp" "$CLAUDE_HOME/settings.json"
+fi
 
 # Orphan handling within managed subdirs (confirmed delete).
 # `|| ans=""` keeps EOF on stdin (non-interactive runs) from aborting under set -e.

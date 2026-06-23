@@ -6,14 +6,7 @@ When editing files, always explain **what** you're changing and **why** before m
 
 ## 2. Code References
 
-When mentioning code, use clickable markdown links with **absolute paths in URL**, relative paths in text:
-
-```markdown
-[helper.py:120](/home/user/project/src/utils/helper.py#L120)
-[helper.py:42-51](/home/user/project/src/utils/helper.py#L42-L51)
-```
-
-Do NOT use backticks, plain text, or relative paths in URLs — they are not clickable in the chat window.
+When mentioning code, use clickable markdown links with **absolute paths in the URL** but relative paths in the link text — e.g. `[helper.py:42-51](/home/user/project/src/utils/helper.py#L42-L51)` (single line: `#L120`). Do NOT use backticks, plain text, or relative paths in URLs — they are not clickable in the chat window.
 
 ## 3. Plan Mode Output Language
 

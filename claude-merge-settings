@@ -31,23 +31,23 @@ BASE="${1:?usage: claude-merge-settings <base.json> [override.json]}"
 OVERRIDE="${2:-}"
 
 if ! command -v jq >/dev/null 2>&1; then
-    echo "claude-merge-settings: 'jq' is required but was not found in PATH." >&2
+    echo "claude-merge-settings: settings merge에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다." >&2
     exit 1
 fi
 
 if [ ! -f "$BASE" ]; then
-    echo "claude-merge-settings: base file not found: $BASE" >&2
+    echo "claude-merge-settings: baseline 파일을 찾을 수 없습니다: $BASE" >&2
     exit 1
 fi
 if ! jq -e 'type == "object"' "$BASE" >/dev/null 2>&1; then
-    echo "claude-merge-settings: base is not a JSON object (or invalid JSON): $BASE" >&2
+    echo "claude-merge-settings: baseline이 JSON 객체가 아닙니다(또는 잘못된 JSON): $BASE" >&2
     exit 1
 fi
 
 # No usable override → emit base unchanged (normalized through jq).
 if [ -z "$OVERRIDE" ] || [ ! -f "$OVERRIDE" ] || ! jq -e 'type == "object"' "$OVERRIDE" >/dev/null 2>&1; then
     if [ -n "$OVERRIDE" ] && [ -f "$OVERRIDE" ]; then
-        echo "claude-merge-settings: override is not a JSON object (or invalid JSON); ignoring it: $OVERRIDE" >&2
+        echo "claude-merge-settings: override가 JSON 객체가 아닙니다(또는 잘못된 JSON). 무시합니다: $OVERRIDE" >&2
     fi
     jq '.' "$BASE"
     exit 0

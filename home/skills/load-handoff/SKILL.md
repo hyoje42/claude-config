@@ -14,7 +14,7 @@ Load a handoff file from a previous session to restore the work context and cont
 1. **Resolve the file path** from args:
    - Absolute path → use as-is; relative path → resolve from workspace root; `@` file reference → already converted to absolute path
    - No path provided → list candidates with `ls -lt .handoffs/*/` and ask the user which one to load
-2. **Read the handoff file**. Handoffs may be written by another agent (`codex-handoff-*.md`, etc.) — treat them the same as Claude-authored ones. These follow a standard structure: Task Overview, Current Progress, Identified Issues, Key File Modifications, Notes (what worked / what failed), and Next Steps.
+2. **Read the handoff file**. Handoffs may be from Claude or other agents (`codex-handoff-*.md`, etc.). These typically follow a structure like Task Overview, Current Progress, Identified Issues, Key File Modifications, Notes (what worked / what failed), and Next Steps — the list is representative, not exhaustive.
 3. **Analyze the context**: task overview, current progress, identified issues, key file modifications, notes (what worked / what failed), next steps.
 4. **Verify against the code**: the handoff reflects a past state. Spot-check that referenced files exist and progress claims still match the current codebase before acting. Do not trust stale claims.
 5. **Summarize status** to the user using the response template below.

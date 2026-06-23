@@ -13,7 +13,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
   - `local/settings.override.json` — 이 머신에만 적용할 값(광범위 권한 등 머신 종속 설정). **git-ignored.** sync 대상이 아니라 merge 재료로만 쓰인다.
   - `local/settings.override.json.example` — 위 파일의 커밋용 템플릿(주석 포함). 복사해서 쓴다.
 - `reference-skills/` — [anthropics/skills](https://github.com/anthropics/skills) submodule(skill 작성 참고용, 수정 금지)
-- `outdated/` — 퇴역한 skill·rule 보관소. **sync 대상 아님.**
+- `outdated/` — 퇴역한 skill·rule 보관소. **sync 대상 아님.** 퇴역 사유는 [outdated/README.md](./outdated/README.md) 참고.
 - `README.md`(이 문서) — 이 repo 설명. / `AGENTS.md`(= `CLAUDE.md`) — agent 작업 규칙. 둘 다 **sync 대상 아님.**
 - `_backup/` — `~/.claude` 동기화 전 백업. **수정 금지.**
 
@@ -34,11 +34,11 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 광범위 권한 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
 
-**셋업**
+**셋업** (`jq` 필요 — 없으면 `apt install jq` / `brew install jq`)
 
 1. `local/settings.override.json.example`을 복사한다.
 2. **주석을 모두 지우고** 실제 머신 종속 값을 채운다. → strict JSON이어야 한다(`jq`가 JSONC 주석을 못 읽고, `http://...` 값 안의 `//`와도 충돌한다).
-3. `local/settings.override.json`으로 저장한다. (이 파일은 git-ignored라 커밋되지 않는다)
+3. `local/settings.override.json`으로 저장한 뒤, `jq . local/settings.override.json`으로 strict JSON인지 검증한다. (이 파일은 git-ignored라 커밋되지 않는다)
 
 **동작**
 

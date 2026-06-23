@@ -5,7 +5,15 @@ description: "Analyze staged git changes, explain what changed, and propose a co
 
 # Generate Commit Message
 
-Message format, language, and the approval-before-commit requirement are defined in the global rule (`~/.claude/rules/git-commit-guidelines.md`) — follow it. This skill only defines the workflow and the response format.
+This skill is self-contained: the commit rules below apply on their own, independent of any global `AGENTS.md` / `rules/`.
+
+## Commit Rules
+
+- Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit.
+- Always write commit messages in English, even when the conversation is in another language.
+- Follow conventional commit format (feat, fix, refactor, docs, test, chore, etc.).
+- Keep the title concise (under 50 characters) and in imperative mood ("add", not "added"). Add a body only when the change needs explanation; mark breaking changes explicitly.
+- Do NOT add AI co-author trailers (e.g., `Co-Authored-By: Claude`, `Co-Authored-By: Codex`) or generator footers (e.g., `🤖 Generated with ...`).
 
 ## Workflow
 

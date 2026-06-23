@@ -6,7 +6,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 - `home/` — `~/.claude/`로 sync되는 영역. 폴더 구조가 `~/.claude/` 레이아웃을 그대로 미러링한다.
   - `home/CLAUDE.md` — `~/.claude/CLAUDE.md`를 빈 상태로 두기 위한 placeholder(의도적 빈 파일). 전역 지시는 `home/rules/`로 관리한다.
-  - `home/rules/` — Claude Code 전역 규칙(응답 형식·도구 사용·git 커밋·Python 등)
+  - `home/rules/` — Claude Code 전역 규칙(응답 형식·도구 사용·git 커밋·Python·agent 지시 파일 작성 등)
   - `home/skills/` — 커스텀 skill 정의
   - `home/settings.json` — Claude Code 설정의 **공통 baseline**(권한·언어 등). git에 커밋되며, 머신 종속 값은 여기 두지 않는다.
 - `local/` — **머신 종속 설정을 두는 곳 (sync 대상 아님).**

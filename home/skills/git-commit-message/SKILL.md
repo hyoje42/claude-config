@@ -5,8 +5,6 @@ description: "Analyze staged git changes, explain what changed, and propose a co
 
 # Generate Commit Message
 
-This skill is self-contained: the commit rules below apply on their own, independent of any global `AGENTS.md` / `rules/`.
-
 ## Commit Rules
 
 - Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit.

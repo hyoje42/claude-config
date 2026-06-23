@@ -2,8 +2,6 @@
 
 Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정을 만들고 `~/.claude/`에 동기화하는 저장소.
 
-이 문서는 사람용 개요다. agent용 안내는 [AGENTS.md](./AGENTS.md)(= `CLAUDE.md`)에 있다.
-
 ## 구조
 
 - `home/` — `~/.claude/`로 sync되는 영역. 폴더 구조가 `~/.claude/` 레이아웃을 그대로 미러링한다.
@@ -12,11 +10,11 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
   - `home/skills/` — 커스텀 skill 정의
   - `home/settings.json` — Claude Code 설정의 **공통 baseline**(권한·언어 등). git에 커밋되며, 머신 종속 값은 여기 두지 않는다.
 - `local/` — **머신 종속 설정을 두는 곳 (sync 대상 아님).**
-  - `local/settings.override.json` — 이 머신에만 적용할 값(프록시·사내 CA·광범위 권한 등). **git-ignored.** sync 대상이 아니라 merge 재료로만 쓰인다.
+  - `local/settings.override.json` — 이 머신에만 적용할 값(광범위 권한 등 머신 종속 설정). **git-ignored.** sync 대상이 아니라 merge 재료로만 쓰인다.
   - `local/settings.override.json.example` — 위 파일의 커밋용 템플릿(주석 포함). 복사해서 쓴다.
 - `reference-skills/` — [anthropics/skills](https://github.com/anthropics/skills) submodule(skill 작성 참고용, 수정 금지)
 - `outdated/` — 퇴역한 skill·rule 보관소. **sync 대상 아님.**
-- `README.md`(이 문서) / `AGENTS.md`(= `CLAUDE.md`) — repo 관리용 meta 문서. **sync 대상 아님.**
+- `README.md`(이 문서) — 이 repo 설명. / `AGENTS.md`(= `CLAUDE.md`) — agent 작업 규칙. 둘 다 **sync 대상 아님.**
 - `_backup/` — `~/.claude` 동기화 전 백업. **수정 금지.**
 
 ## 스크립트
@@ -34,12 +32,12 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 머신 종속 설정 (local override + merge)
 
-프록시·사내 CA·광범위 권한 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
+광범위 권한 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
 
 **셋업**
 
 1. `local/settings.override.json.example`을 복사한다.
-2. **주석을 모두 지우고** 실제 값(프록시 IP·사내 CA 절대경로 등)을 채운다. → strict JSON이어야 한다(`jq`가 JSONC 주석을 못 읽고, `http://...` 값 안의 `//`와도 충돌한다).
+2. **주석을 모두 지우고** 실제 머신 종속 값을 채운다. → strict JSON이어야 한다(`jq`가 JSONC 주석을 못 읽고, `http://...` 값 안의 `//`와도 충돌한다).
 3. `local/settings.override.json`으로 저장한다. (이 파일은 git-ignored라 커밋되지 않는다)
 
 **동작**
@@ -49,7 +47,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 - override가 **없으면** settings.json은 그냥 baseline 그대로 복사된다.
 - `claude-diff-with-home`은 merge 결과를 기준으로 diff를 보여주므로, sync 전에 실제 반영될 내용을 확인할 수 있다.
 
-> 실제 프록시 IP·사내 도메인·CA 경로 등 내부 인프라 정보는 `local/`에만 두고 **절대 커밋하지 말 것.** 관련 배경은 [../docs/codex-proxy-ssl-login.md](../docs/codex-proxy-ssl-login.md)(프록시·사내 CA) 참고.
+> 내부 인프라 등 머신 종속 실제 값은 `local/`에만 두고 **절대 커밋하지 말 것.**
 
 ## Skill 작성 가이드
 

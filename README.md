@@ -28,11 +28,11 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 1. 공통 설정은 `home/`(rules·skills·`home/settings.json`)에서, 머신 종속 값은 `local/settings.override.json`에서 수정한다.
 2. `./claude-diff-with-home`으로 차이를 확인한다.
 3. 필요할 때 `./claude-sync-to-home`으로 `~/.claude/`에 반영한다.
-4. `git commit`으로 변경 이력을 남긴다(`local/`은 커밋되지 않는다).
+4. `git commit`으로 변경 이력을 남긴다(`local/`의 실제 머신 값은 커밋되지 않는다).
 
 ## 머신 종속 설정 (local override + merge)
 
-광범위 권한 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
+광범위 권한이나 프록시 환경의 `HTTPS_PROXY`·`NODE_EXTRA_CA_CERTS` 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
 
 **셋업** (`jq` 필요 — 없으면 `apt install jq` / `brew install jq`)
 
@@ -47,7 +47,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 - override가 **없으면** settings.json은 그냥 baseline 그대로 복사된다.
 - `claude-diff-with-home`은 merge 결과를 기준으로 diff를 보여주므로, sync 전에 실제 반영될 내용을 확인할 수 있다.
 
-> 내부 인프라 등 머신 종속 실제 값은 `local/`에만 두고 **절대 커밋하지 말 것.**
+> 머신 종속 실제 값은 `local/`에만 두고 **절대 커밋하지 말 것.** 루트 `.gitignore`가 `local/*`를 무시하고 `*.example` 템플릿만 추적한다.
 
 ## 규칙 로딩 (`home/rules/`)
 

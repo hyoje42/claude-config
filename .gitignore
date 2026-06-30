@@ -4,6 +4,7 @@
 # Backup area (not synced)
 _backup
 
-# Machine-specific settings (git-ignored) — merged with the home/settings.json
-# baseline and synced to ~/.claude/settings.json. Never commit.
-settings.override.json
+# Machine-specific area: ignore everything in local/, commit only the *.example
+# templates. New real-value files under local/ are then ignored automatically.
+local/*
+!local/*.example

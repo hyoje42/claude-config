@@ -15,8 +15,7 @@
   //   못 읽고, "http://..." 같은 값 안의 // 와도 충돌한다. 이 .example 만 주석을 둔다.
   //   주석은 모두 전체 줄 단위이니 그 줄들을 통째로 지우면 된다(값 안의 // 는 건드리지 말 것).
   //   작성 후 `jq . local/settings.override.json` 로 strict JSON 인지 검증할 것.
-  // ⚠ 실제 프록시 IP / 사내 CA 절대경로는 local/ 안에만 두고 절대 커밋하지 말 것.
-  // 참고: docs/codex-proxy-ssl-login.md (프록시·사내 CA 근거)
+  // ⚠ 실제 프록시 IP / CA 번들 절대경로는 local/ 안에만 두고 절대 커밋하지 말 것.
 
   "env": {
     "HTTPS_PROXY": "http://<PROXY_HOST>:<PORT>",
@@ -25,9 +24,9 @@
     "http_proxy": "",
     "ALL_PROXY": "",
     "all_proxy": "",
-    "NO_PROXY": "localhost,127.0.0.1,<corp-domains-and-ip-ranges>,::1",
-    "no_proxy": "localhost,127.0.0.1,<corp-domains-and-ip-ranges>,::1",
-    "NODE_EXTRA_CA_CERTS": "/absolute/path/to/corp-ca-bundle.pem",
+    "NO_PROXY": "localhost,127.0.0.1,<no-proxy-domains>,::1",
+    "no_proxy": "localhost,127.0.0.1,<no-proxy-domains>,::1",
+    "NODE_EXTRA_CA_CERTS": "/absolute/path/to/ca-bundle.pem",
     "CLAUDE_CODE_CERT_STORE": "bundled,system"
   },
   "permissions": {

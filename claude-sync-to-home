@@ -9,7 +9,7 @@ BACKUP_DIR="$CLAUDE_REPO/_backup"
 MAX_BACKUPS=5
 
 # settings.json은 특별하다: ~/.claude/settings.json은 전역(모든 디렉터리)으로
-# 적용되는 유일한 파일이라, 머신 종속 값(proxy, 사내 CA, 광범위 권한)은 반드시
+# 적용되는 유일한 파일이라, 머신 종속 값(proxy, CA, 광범위 권한)은 반드시
 # 여기로 들어가야 한다 — 단 커밋되지 않은 채로. 그런 값은 git-ignored
 # override(local/settings.override.json)에 두고, sync 시점에 커밋된
 # baseline(home/settings.json) 위에 merge한다.

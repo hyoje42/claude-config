@@ -5,3 +5,11 @@
 For file-related tools (Read, Edit, Write, Grep, Glob, Bash, etc.), try workspace-root-relative paths first (e.g. `./src/utils/helper.py`); fall back to an absolute path only when the relative one fails.
 
 Note: This applies to **tool call arguments** only. User-facing code reference links in responses use absolute paths in URLs (see response-format rules).
+
+## 2. Prefer rg for Search
+
+Use `rg` or `rg --files` for searching text or files when available.
+
+## 3. Preserve Existing Work
+
+Existing work may be mixed in. Do not revert, overwrite, or discard changes you did not make unless the user explicitly asks you to.

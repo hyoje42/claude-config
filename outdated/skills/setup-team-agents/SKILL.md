@@ -261,7 +261,7 @@ If any of these three steps is missing, the setup is incomplete.
 ## Guidelines
 
 - Don't force unnecessary roles. If 3 agents suffice, use 3.
-- Write agent prompts in the user's language (match the conversation language), except for code/technical terms.
+- Write agent prompts and workspace markdown artifacts in the user's explicitly requested language; if no language is specified, write them in the user's preferred language.
 - Workspace .md files double as asynchronous communication channels — agents save artifacts to files, and other agents read them for feedback.
 
 ## Error Handling

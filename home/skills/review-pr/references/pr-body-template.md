@@ -4,6 +4,9 @@ to open themselves (via the browser or any tool of their choice). Fill each
 section from what you learned during the review. Drop sections that genuinely
 do not apply rather than leaving them empty. Do not fabricate ticket IDs or
 links — include them only if the user or commit messages reference them.
+Translate headings and prose into the user's explicitly requested language; if
+no language is specified, use the user's preferred language. Keep file paths,
+code identifiers, commands, checkboxes, and links unchanged.
 -->
 
 ## Summary

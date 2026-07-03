@@ -1,6 +1,7 @@
 # Handoff Template
 
 Create `.handoffs/YYMMDD-{task-slug}/claude-handoff-YYYY-MM-DD-HHMMSS.md` with the following structure. Drop sections that genuinely do not apply rather than leaving them empty.
+Translate section headings and prose into the user's explicitly requested language; if no language is specified, use the user's preferred language. Keep file paths, code identifiers, and commands unchanged.
 
 ```markdown
 # [Task/Topic] - HANDOFF

@@ -1,6 +1,7 @@
 # Review Response Template
 
 After the verdicts are settled, record the response at `.reviews/{same-task-folder}/claude-response-YYYY-MM-DD-HHMMSS.md`.
+Translate section headings and prose into the user's explicitly requested language; if no language is specified, use the user's preferred language. Keep verdict markers, file paths, code identifiers, and commands unchanged.
 
 - Timestamp — KST: `TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S"`. If the exact filename already exists, append `-2`, `-3`, ...
 - The `claude-` prefix identifies the responding agent (a response from another agent would be `codex-response-*.md`, etc.).

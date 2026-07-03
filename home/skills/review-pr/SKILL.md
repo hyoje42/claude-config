@@ -85,6 +85,7 @@ Always prioritize:
 ## Output Rules
 
 - Findings come first.
+- Write the review output in the user's explicitly requested language; if no language is specified, write it in the user's preferred language.
 - Order findings by severity and impact.
 - Give one issue per bullet.
 - Include concrete evidence: file path and line number when available, otherwise the nearest diff hunk or function name.
@@ -118,6 +119,7 @@ branch for conventions (Conventional Commits prefixes, ticket-ID prefixes, etc.)
 Start from [references/pr-body-template.md](references/pr-body-template.md) and
 fill each section from what the review surfaced:
 
+- Write the PR title and body in the user's explicitly requested language; if no language is specified, write them in the user's preferred language.
 - **Summary**: what changed and why, in plain language. Do not list every file.
 - **Scope**: what is included and what is intentionally excluded, especially if the branch touches adjacent areas.
 - **Type Of Change**: check the boxes that apply.

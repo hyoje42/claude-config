@@ -57,3 +57,4 @@ Reviews live in the **project root's** `.reviews/` directory, shared across codi
 - **Calibrate severity** (levels defined in the template); when intent is unknown, prefer `question` over asserting a defect.
 - **Note what is done well** — it calibrates the author's reflection and separates deliberate choices you agree with from issues you missed.
 - **Write tool-neutral and self-contained** — the reader is another coding agent, possibly a different tool, that has not seen this conversation.
+- **Match the user's language** — write the review in the user's explicitly requested language; if no language is specified, write it in the user's preferred language.

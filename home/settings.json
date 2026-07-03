@@ -133,6 +133,11 @@
     "defaultMode": "default"
   },
   "language": "korean",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "skipDangerousModePermissionPrompt": true,
   "skipAutoPermissionPrompt": true
 }

@@ -44,3 +44,4 @@ Handoffs live in the **project root's** `.handoffs/` directory, shared across co
 - **Be specific**: exact file paths, code, and commands — the next agent should start immediately without rereading the full conversation.
 - **Keep it concise**: 100–300 lines. Enough detail to continue, not a transcript.
 - **Write tool-neutral**: the reader may not be a Claude instance. Avoid instructions that only work in this tool.
+- **Match the user's language**: write the handoff in the user's explicitly requested language; if no language is specified, write it in the user's preferred language.

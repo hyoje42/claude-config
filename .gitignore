@@ -1,6 +1,9 @@
 # Editor
 .vscode/
 
+# Python
+__pycache__/
+
 # Backup area (not synced)
 _backup
 

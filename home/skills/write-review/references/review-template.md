@@ -1,6 +1,7 @@
 # Peer Review Template
 
 Create `.reviews/YYMMDD-{task-slug}/claude-review-YYYY-MM-DD-HHMMSS.md` with the following structure. Drop sections that genuinely do not apply rather than leaving them empty.
+Translate section headings and prose into the user's explicitly requested language; if no language is specified, use the user's preferred language. Keep severity labels, file paths, code identifiers, and commands unchanged.
 
 Severity levels:
 

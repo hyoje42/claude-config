@@ -40,6 +40,7 @@ The skill ends there. If the user then explicitly asks to apply some or all acce
 
 - **Reviewer authority is not evidence.** Accept a finding only after confirming it yourself at the cited location. What you cannot confirm is a dispute or a discussion item — never a polite accept. Blanket agreement defeats the purpose of this skill.
 - **Defensiveness is the symmetric failure.** Do not protect the work because it is "yours"; when the evidence stands, accept plainly.
+- **Match the user's language.** Write the user-facing report and response file in the user's explicitly requested language; if no language is specified, write them in the user's preferred language.
 - ✅ **Accept** — confirmed against the artifact and evidence → describe the exact fix you would make (do not make it)
 - ❌ **Dispute** — counter-evidence found → cite it concretely (`file:line`, observed behavior, source link, or the requirement it serves)
 - 🤔 **Discuss** — hinges on intent or requirements only the user knows, genuinely uncertain, or unverifiable without side effects → formulate the precise question or name the missing check

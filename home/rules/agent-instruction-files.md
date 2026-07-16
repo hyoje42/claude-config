@@ -38,3 +38,10 @@ AGENTS.md. This avoids maintaining two divergent copies.
 Otherwise, author only the file you were asked for. If the user asks for a
 CLAUDE.md only, write just that — do not add an AGENTS.md or restructure an
 existing instruction file the user did not ask you to change.
+
+## 3. Language
+
+Write these files in English by default, even when the conversation is in
+another language — they are agent-facing and English is the most reliable
+across tools and models. When extending an existing instruction file, match
+its current language instead. An explicit user instruction overrides this.

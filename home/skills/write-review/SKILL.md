@@ -1,6 +1,7 @@
 ---
 name: write-review
-description: "Use this skill ONLY when the user explicitly invokes it — /write-review or naming \"write-review\" — to have a peer-review document written for work produced by another agent or session (code changes, commits, or documents). An unambiguous ask to \"write a peer review file of what the other agent did\" also counts. Do NOT trigger on generic review requests that do not name this skill — e.g. \"review the current changes\", \"review this code\", \"review my PR\" — those belong to a conversational review or the review-pr skill. This skill reads the target and writes one review file under .reviews/; it never fixes, edits, or otherwise modifies anything. It must not read other .reviews files unless the user explicitly names them as context or asks for a follow-up review. Default target: the uncommitted changes (git diff); also accepts a commit range, file paths, or a document path, plus optional context files such as a handoff. The author agent processes the resulting file with the read-review skill."
+description: "Write a peer-review document for work produced by another agent or session (code changes, commits, or documents). This skill reads the target and writes one review file under .reviews/; it never fixes, edits, or otherwise modifies anything. It must not read other .reviews files unless the user explicitly names them as context or asks for a follow-up review. Default target: the uncommitted changes (git diff); also accepts a commit range, file paths, or a document path, plus optional context files such as a handoff. The author agent processes the resulting file with the read-review skill."
+disable-model-invocation: true
 ---
 
 # Write Review

@@ -15,3 +15,4 @@ Path map: only `home/` syncs to `~/.claude/` · `home/settings.json` is the shar
 - **Commit order**: commit in the submodule first → then commit the pointer bump in the parent.
 - **Do not port mechanisms blindly**: Claude uses JSON settings merge; Codex uses TOML config merge plus separate runtime wrapper handling. Convert semantics intentionally when moving rules between tools.
 - **Authoring skills**: build new skills using the official examples in `reference-skills/` (a reference-only submodule — do not edit it directly).
+- **Explicit-invocation-only skills**: set `disable-model-invocation: true` in `SKILL.md` frontmatter. Do not rely on wording in `description` to prevent automatic invocation.

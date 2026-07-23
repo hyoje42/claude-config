@@ -1,13 +1,16 @@
 ---
 name: git-commit-message
-description: "Analyze staged git changes, explain what changed, and propose a commit message. Use when the user requests 'generate commit message', 'create commit', 'git commit', or wants to commit staged changes."
+description: "Analyze repository changes, separate staged, unstaged, untracked, and partially staged work, then propose logical commit groups and messages. Use when the user requests 'generate commit message', 'create commit', 'git commit', or wants a commit plan for current changes."
 ---
 
-# Generate Commit Message
+# Plan Git Commits
 
 ## Commit Rules
 
 - Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit.
+- Treat the index as the user's intended commit boundary. When staged changes exist, default the immediate commit proposal to exactly that staged diff; never silently mix unstaged or untracked work into its message or scope.
+- Always report staged, unstaged, untracked, partially staged, and relevant submodule states, even when the proposed commit uses only staged changes.
+- Do not run `git add`, `git restore --staged`, or otherwise change the index until the user approves an exact commit plan. Never stage an entire partially staged file merely to include one unstaged hunk.
 - Always write commit messages in English, even when the conversation is in another language.
 - Follow conventional commit format (feat, fix, refactor, docs, test, chore, etc.).
 - Keep the title concise (under 50 characters) and in imperative mood ("add", not "added"); mark breaking changes explicitly.
@@ -18,34 +21,80 @@ description: "Analyze staged git changes, explain what changed, and propose a co
 
 ## Workflow
 
-1. Check staged changes first: `git diff --staged` for content, `git diff --staged --name-only` for the file list.
-2. **If staged changes exist, analyze only those** — do not mix in unstaged or untracked changes.
-3. **If nothing is staged, don't stop** — inspect the working tree (`git status`, `git diff`, untracked files), then propose which files to stage (grouped into separate commits when they clearly differ) plus each group's message, in the same response. Prefer changes you made this session; flag any you didn't rather than forcing them in. Don't run `git add`/`git commit` until the user approves.
-4. Analyze what changed and why, file by file.
-5. Propose a commit message using the response format below, then wait for the user.
+1. Read the repository's applicable agent instructions and commit rules. Respect repository boundaries and required submodule commit order.
+2. Inventory the whole working tree with `git status --short`. Classify every relevant path as staged, unstaged, untracked, partially staged, or a submodule state. A path with both index and worktree changes belongs in the partially staged group.
+3. Inspect the staged diff in detail with `git diff --staged`. Always know the paths and statuses of other changes, but inspect their content only when:
+   - nothing is staged,
+   - they are needed to understand the staged change,
+   - they are the unstaged portion of a partially staged file,
+   - they appear related to the proposed commit,
+   - they were created or modified by this agent in the current session, or
+   - a submodule's inner state and parent pointer need to be distinguished.
+4. Do not open likely secret or credential files merely because they are untracked. Report the path and risk instead.
+5. Build logical groups:
+   - **Current staged commit**: when staged changes exist, propose exactly those changes as the default immediate commit.
+   - **Related inclusion candidates**: unstaged or untracked work that appears necessary for completeness, especially relevant tests, docs, generated files, or changes made in this session. Recommend inclusion, but keep it outside the staged commit until approved.
+   - **Follow-up commits**: coherent changes that should be committed separately.
+   - **Hold/exclude**: unrelated, user-owned, risky, or unclear changes that should remain untouched.
+6. If staged changes contain unrelated concerns, recommend splitting them and explain why, but do not alter the index. If nothing is staged, propose exact files for each logical commit, prioritizing changes made in this session while clearly flagging pre-existing user changes.
+7. For each proposed commit, state its exact scope, explain why those changes belong together, and provide a commit message. Make a direct recommendation such as: "I propose committing A and B now as `...`, keeping C for a follow-up."
+8. Present the full state and commit plan using the format below, then wait for approval.
+9. After approval, apply only the approved staging changes. Re-check `git status --short` and `git diff --staged` immediately before committing; if the staged scope changed from the approved plan, stop and propose the updated plan instead.
+10. After committing, report the commit hash and the remaining staged, unstaged, untracked, and submodule state.
 
 ## Response Format
 
 ````markdown
-## 📝 변경사항 분석 완료
+## Change State
 
-Staged된 파일:
-- [file1.ext](absolute/path/to/file1.ext) (신규/수정/삭제)
-- [file2.ext](absolute/path/to/file2.ext) (신규/수정/삭제)
+### Staged — current commit candidate
+- [file-a.ext](absolute/path/to/file-a.ext) (modified)
 
-### 변경 내용
+### Unstaged — not in the current commit
+- [file-b.ext](absolute/path/to/file-b.ext) (modified)
 
-[파일별로 무엇이 왜 바뀌었는지 간단히]
+### Untracked — new files
+- [file-c.ext](absolute/path/to/file-c.ext)
 
----
+### Partially staged / submodules
+- [file-d.ext](absolute/path/to/file-d.ext) — has both staged and unstaged hunks
+- [submodule](absolute/path/to/submodule) — describe inner changes and parent pointer separately
 
-## 제안하는 커밋 메시지
+Omit empty groups. Write this analysis in the user's preferred language.
+
+## Proposed Commit Plan
+
+### Commit 1 — commit now
+
+Scope:
+- file-a.ext
+- staged hunks of file-d.ext
+
+Why these belong together:
+- [brief explanation]
+
+Message:
 
 ```
 type: brief description
 
-(본문은 non-trivial한 변경일 때만: 관련된 why/how, behavior·policy·migration·safety 영향)
+(body only when non-trivial: explain relevant why/how and behavior, policy,
+migration, or safety impact)
 ```
 
-이 메시지가 괜찮으시면 커밋을 진행하겠습니다. 수정을 원하시면 말씀해주세요.
+### Related inclusion candidates
+- file-c.ext — [why it may belong in Commit 1, and that it is not staged]
+
+### Follow-up commits
+- Commit 2: file-b.ext — `type: another description`
+
+### Hold / exclude
+- [path] — [why it should remain untouched]
+
+Recommendation: I propose committing [exact current scope] now as `[title]`,
+[including an exact additional scope only after approval], and keeping
+[remaining scope] for [a follow-up / later decision].
+
+Wait for the user to approve or revise the scope and message. Do not stage or
+commit while presenting this proposal.
 ````

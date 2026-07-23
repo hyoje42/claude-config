@@ -22,8 +22,8 @@ Works on **local git refs only**. No remote API, no `gh`, no PR numbers, no URLs
 
 ### Slash command: `/review-pr [args]`
 
-- `/review-pr` — current branch vs `main`
-- `/review-pr <branch>` — `<branch>` vs `main`
+- `/review-pr` — current branch vs the repository's default branch
+- `/review-pr <branch>` — `<branch>` vs the repository's default branch
 - `/review-pr <target> <base>` — `<target>` vs `<base>`
 - `/review-pr --staged` — `git diff --staged`
 - Append `draft` to any of the above to also draft a PR title and body (e.g. `/review-pr <branch> draft`)
@@ -53,7 +53,7 @@ Read [references/target-resolution.md](references/target-resolution.md) when you
 
 Supported review modes (all based on local git refs):
 
-- Branch review: current branch or `<target>` against `<base>` — the most common case is comparing the current branch against `main`
+- Branch review: current branch or `<target>` against `<base>` — when `<base>` is omitted, resolve the repository's default branch
 - Commit review: single commit or explicit commit range
 - Pre-PR review: staged diff or working tree changes
 

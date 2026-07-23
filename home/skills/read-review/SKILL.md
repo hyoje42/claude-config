@@ -1,6 +1,7 @@
 ---
 name: read-review
-description: "Use this skill ONLY when the user explicitly invokes it — /read-review or naming \"read-review\" — to have this agent respond to a peer review of its work (e.g. /read-review .reviews/YYMMDD-task/codex-review-xxx.md). A .reviews/ path alone is NOT a trigger: if the user asks to show, read, or summarize a review file without asking for a response to it, read the file normally without this skill. Invoked without a path, it auto-discovers candidates under .reviews/. Best run in the session that did the work; a fresh session or a different agent also works — verdicts are then grounded in the reviewed artifact, relevant source material, git state when applicable, and any context the user provides. Produces evidence-based verdicts (accept/dispute/discuss) and a response file under .reviews/ — opinions only: it never edits code, documents, or other reviewed artifacts; fixes happen later, outside this skill, only on the user's explicit instruction. Do NOT use to write a fresh review (use write-review)."
+description: "Respond to a peer review of this agent's work. Without a path, auto-discover candidates under .reviews/. Best run in the session that did the work; a fresh session or a different agent also works — verdicts are then grounded in the reviewed artifact, relevant source material, git state when applicable, and any context the user provides. Produces evidence-based verdicts (accept/dispute/discuss) and a response file under .reviews/ — opinions only: it never edits code, documents, or other reviewed artifacts; fixes happen later, outside this skill, only on the user's explicit instruction. Do NOT use to write a fresh review (use write-review)."
+disable-model-invocation: true
 ---
 
 # Read Review

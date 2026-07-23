@@ -65,11 +65,17 @@ git diff
 
 When the user does not specify a base, resolve it in this order:
 
-1. The current branch's upstream target, if it is clearly configured
-2. The repository default branch from `refs/remotes/origin/HEAD`, if available
+1. The default branch advertised by the target branch's remote, using
+   `refs/remotes/<remote>/HEAD` when that symbolic ref exists
+2. Another unambiguous remote default branch, such as
+   `refs/remotes/origin/HEAD`
 3. An existing local branch named `main`, `master`, or `develop`
 
 If more than one reasonable base exists and the choice affects the review, ask the user instead of guessing.
+
+The target branch's upstream tracking ref is **not** its review base. For
+example, if `feature/login` tracks `origin/feature/login`, do not compare those
+two refs; resolve the repository's default branch instead.
 
 ## Local Vs Remote Refs
 

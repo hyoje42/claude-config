@@ -20,6 +20,24 @@ MAX_BACKUPS=5
 MERGE_HELPER="$CLAUDE_REPO/claude-merge-settings"
 LOCAL_OVERRIDE="$CLAUDE_REPO/local/settings.override.json"
 
+# local/ 일반 파일 오버라이드: local/에 home/과 동일한 미러 구조(rules/,
+# skills/, 최상위 파일)로 머신 전용 파일을 둘 수 있다. 이 파일들은 git-ignored
+# (루트 .gitignore의 local/* 패턴)라 이 머신에만 적용되며, home/ sync 이후에
+# ~/.claude/로 덮어쓴다. settings.override.json·*.example·.synced는 일반 파일
+# 오버라이드가 아니라 아래 LOCAL_EXCLUDES로 제외한다.
+#
+# 핵심 의도: local/에서 오는 변경은 이 머신 전용이므로 sync 시 무조건 사용자
+# 승인 프롬프트를 거친다(거부 시 local sync 전체 스킵). home/과 같은 경로가
+# 충돌하면 의도치 않은 덮어쓰기를 막기 위해 sync 전에 거부한다.
+LOCAL_SRC="$CLAUDE_REPO/local"
+# local rsync 제외: settings.override.json(merge 재료로만 쓰임), *.example
+# (커밋용 템플릿). '.synced'는 현재 사용하지 않지만 예비로 제외.
+LOCAL_EXCLUDES=(
+    --exclude='/settings.override.json'
+    --exclude='*.example'
+    --exclude='.synced'
+)
+
 # merge는 jq에 의존한다. 머신의 settings 위에 baseline만 조용히 미러링해
 # (proxy/CA/권한이 사라짐) 버리느니 요란하게 실패한다.
 command -v jq >/dev/null 2>&1 || {
@@ -45,6 +63,28 @@ if [ -f "$LOCAL_OVERRIDE" ]; then
     fi
 fi
 
+# home/과 local/의 일반 파일 중 같은 rel_path가 있으면 거부한다. 의도치 않은
+# 덮어쓰기(home sync 후 local이 다시 덮어쓰는)를 막기 위함. settings.json
+# (home)과 settings.override.json(local)은 이름이 달라 자연스럽게 제외된다.
+check_local_duplicates() {
+    [ -d "$LOCAL_SRC" ] || return 0
+    local dup=0
+    while IFS= read -r -d '' lf; do
+        local rel="${lf#$LOCAL_SRC/}"
+        # LOCAL_EXCLUDES와 같은 조건으로 제외 대상은 건너뛴다.
+        case "$rel" in
+            settings.override.json|*.example|.synced) continue ;;
+        esac
+        if [ -f "$CLAUDE_SRC/$rel" ]; then
+            echo "claude-sync-to-home: home/과 local/에 같은 경로가 있습니다: $rel" >&2
+            echo "  중복을 하나로 정리한 뒤 다시 실행하세요 (home/=공통, local/=이 머신 전용)." >&2
+            dup=1
+        fi
+    done < <(find "$LOCAL_SRC" -type f -print0 2>/dev/null)
+    [ "$dup" -eq 0 ]
+}
+check_local_duplicates || exit 1
+
 # rsync 제외 목록을 만든다. 떠도는 home/settings.local.json은 항상 제외한다
 # (claude가 $HOME에서 실행될 때만 적용돼 — 다른 곳에선 헷갈리는 no-op).
 # override가 있으면 settings.json도 제외한다(merge가 그 파일을 쓴다).
@@ -57,7 +97,7 @@ fi
 
 # 우리가 완전히 관리하는 하위 디렉터리. 이 안의 고아 파일(대상에는 있지만
 # 소스에는 없음)은 목록으로 보여주고 확인을 거쳐 삭제를 제안한다.
-MANAGED_DIRS=(rules skills)
+MANAGED_DIRS=(rules skills agents)
 
 mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
 
@@ -70,7 +110,13 @@ list_orphans() {
     [ -d "$home_d" ] || return 0
     while IFS= read -r -d '' f; do
         local rel="${f#$home_d/}"
-        [ -f "$src_d/$rel" ] || echo "$f"
+        # home/에 있거나 local/에 있으면 고아가 아니다. local에서 온 파일을
+        # home 고아로 잘못 잡아 삭제 제안하는 걸 막는다. local에서 빠지면
+        # 양쪽 모두에 없게 돼 여기서 걸려 자연스럽게 삭제 제안으로 환원된다.
+        if [ -f "$src_d/$rel" ] || [ -f "$LOCAL_SRC/$d/$rel" ]; then
+            continue
+        fi
+        echo "$f"
     done < <(find "$home_d" -type f -print0 2>/dev/null)
 }
 
@@ -97,7 +143,19 @@ if [ "$has_override" -eq 1 ]; then
     fi
 fi
 
-if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ] && [ "$settings_changed" -eq 0 ]; then
+# local/ 일반 파일의 변경(추가/수정)을 dry-run으로 미리 감지한다. local은 이
+# 머신 전용이므로, 변경이 있으면 백업 후 실제 적용 전에 반드시 사용자 승인을
+# 받는다(아래 local sync 단계). 여기선 건수만 센다 — local이 유일한 변경일 수
+# 있으므로 0-Changes 게이트에 포함해야 한다.
+local_count=0
+if [ -d "$LOCAL_SRC" ]; then
+    local_count=$(rsync -an --itemize-changes "${LOCAL_EXCLUDES[@]}" \
+        "$LOCAL_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
+        | grep -cE '^[<>ch]' || true)
+fi
+
+if [ "$sync_changes" -eq 0 ] && [ "$orphan_count" -eq 0 ] \
+   && [ "$settings_changed" -eq 0 ] && [ "$local_count" -eq 0 ]; then
     echo "변경 사항 없음."
     exit 0
 fi
@@ -124,6 +182,22 @@ done
 find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r \
     | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -rf
 
+# local/에서 덮어쓸 파일도 백업해둔다. local은 git-ignored라 sync 후 실수로
+# 날아가면 복구 불가하므로 home/과 같은 백업 보호를 적용한다.
+if [ "$local_count" -gt 0 ] && [ -d "$LOCAL_SRC" ]; then
+    while IFS= read -r -d '' lf; do
+        lrel="${lf#$LOCAL_SRC/}"
+        case "$lrel" in
+            settings.override.json|*.example|.synced) continue ;;
+        esac
+        lhf="$CLAUDE_HOME/$lrel"
+        [ -f "$lhf" ] || continue
+        ldst="$backup_target/$lrel"
+        mkdir -p "$(dirname "$ldst")"
+        cp -a "$lhf" "$ldst"
+    done < <(find "$LOCAL_SRC" -type f -print0 2>/dev/null)
+fi
+
 # home/ -> ~/.claude/ sync (추가/갱신만; ~/.claude/의 home/ 밖 파일은 건드리지 않음)
 echo ""
 echo "home/ → ~/.claude sync 중 ..."
@@ -134,6 +208,26 @@ rsync -a "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/"
 if [ "$has_override" -eq 1 ] && [ "$settings_changed" -eq 1 ]; then
     echo "✓ settings.json merge 완료 (baseline + local/settings.override.json) → ~/.claude/settings.json"
     cp "$merged_tmp" "$CLAUDE_HOME/settings.json"
+fi
+
+# local/ 일반 파일 -> ~/.claude/ sync. 이 머신 전용 파일은 무조건 사용자 승인을
+# 받는다. 승인 전에 어떤 파일이 어떻게 바뀌는지 dry-run으로 보여주고, y를 누른
+# 경우에만 실제로 덮어쓴다. 거부하면 local sync 전체를 건너뛴다(home sync는
+# 이미 끝난 상태).
+if [ "$local_count" -gt 0 ] && [ -d "$LOCAL_SRC" ]; then
+    echo ""
+    echo "local/ → ~/.claude sync (이 머신 전용 — 승인 필요):"
+    rsync -an --itemize-changes "${LOCAL_EXCLUDES[@]}" "$LOCAL_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
+        | grep -E '^[<>ch]' || true
+    echo ""
+    echo "⚠ 위 파일들을 local/에서 ~/.claude/로 덮어씁니다. 승인 없이는 진행하지 않습니다."
+    read -r -p "local sync를 적용할까요? [y/N]: " ans || ans=""
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+        rsync -a "${LOCAL_EXCLUDES[@]}" "$LOCAL_SRC/" "$CLAUDE_HOME/"
+        echo "✓ local/ sync 완료 → ~/.claude/"
+    else
+        echo "건너뜀 (local sync 미적용)."
+    fi
 fi
 
 # 관리 대상 하위 디렉터리 안의 고아 파일 처리 (확인 후 삭제).

@@ -9,9 +9,10 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
   - `home/rules/` — Claude Code 전역 규칙(응답 형식·도구 사용·git 커밋·Python·agent 지시 파일 작성 등)
   - `home/skills/` — 커스텀 skill 정의
   - `home/settings.json` — Claude Code 설정의 **공통 baseline**(권한·언어·attribution 기본값 등). git에 커밋되며, 머신 종속 값은 여기 두지 않는다.
-- `local/` — **머신 종속 설정을 두는 곳 (sync 대상 아님).**
-  - `local/settings.override.json` — 이 머신에만 적용할 값(광범위 권한 등 머신 종속 설정). **git-ignored.** sync 대상이 아니라 merge 재료로만 쓰인다.
+- `local/` — **머신 종속 설정을 두는 곳.** `local/*`는 git-ignored라 이 머신에만 적용된다.
+  - `local/settings.override.json` — 이 머신에만 적용할 settings.json 값(광범위 권한 등). sync 대상이 아니라 merge 재료로만 쓰인다.
   - `local/settings.override.json.example` — 위 파일의 커밋용 템플릿(주석 포함). 복사해서 쓴다.
+  - `local/` 일반 파일 오버라이드 — `home/`과 동일한 미러 구조(`local/rules/`, `local/skills/`, 최상위 파일)로 **이 머신에만 쓸 파일**을 둘 수 있다. sync 시 `home/` 적용 뒤 `~/.claude/`로 덮어쓴다. `home/`과 같은 경로가 중복되면 sync가 거부된다(아래 참고). `settings.override.json`·`*.example`·`.synced`는 제외.
 - `reference-skills/` — [anthropics/skills](https://github.com/anthropics/skills) submodule(skill 작성 참고용, 수정 금지)
 - `outdated/` — 퇴역한 skill·rule 보관소. **sync 대상 아님.** 퇴역 사유는 [outdated/README.md](./outdated/README.md) 참고.
 - `README.md`(이 문서) — 이 repo 설명. / `AGENTS.md`(= `CLAUDE.md`) — agent 작업 규칙. 둘 다 **sync 대상 아님.**
@@ -32,7 +33,15 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 머신 종속 설정 (local override + merge)
 
-광범위 권한이나 프록시 환경의 `HTTPS_PROXY`·`NODE_EXTRA_CA_CERTS` 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
+`local/`에는 두 종류의 머신 종속 값을 둔다. 둘 다 `local/*`가 git-ignored라 이 머신에만 적용된다.
+
+**1. settings.json 값 (merge)** — 광범위 권한이나 프록시 환경의 `HTTPS_PROXY`·`NODE_EXTRA_CA_CERTS` 같은 **이 머신에만 필요한 값**은 git에 올리지 않으면서도 **모든 디렉터리에서 전역 적용**되어야 한다. Claude Code에서 전역 적용되는 설정은 `~/.claude/settings.json` 하나뿐이므로(`~/.claude/settings.local.json`은 홈 디렉터리에서 실행할 때만 먹는 함정이다), 공통 설정과 머신 값을 sync 시점에 합쳐서 그 파일에 쓴다.
+
+**2. 일반 파일 오버라이드 (rules·skills·최상위 파일)** — 이 머신에만 쓸 rule·skill·스크립트를 `local/`에 `home/`과 같은 구조(`local/rules/`, `local/skills/`, 최상위 파일)로 둘 수 있다. sync는 `home/`을 먼저 `~/.claude/`에 적용한 뒤, `local/`의 일반 파일로 덮어쓴다.
+
+- **무조건 승인**: `local/`에서 오는 변경은 이 머신 전용이므로 sync 시 dry-run으로 파일 목록을 보여주고 **승인 프롬프트**를 낸다. 거부하면 local sync 전체를 건너뛴다(`home/` sync는 이미 끝난 상태).
+- **중복 금지**: `home/`과 `local/`에 같은 경로가 있으면 sync를 거부한다. 공통은 `home/`, 이 머신 전용은 `local/`로 하나만 둔다.
+- **삭제는 자동으로 안 함**: `local/`에서 파일을 빼면 `~/.claude/`에 잔존한다. 다음 sync에서 `home/`에도 없는 파일로 분류돼 **삭제 제안 프롬프트**가 뜨며, 승인할 때만 지운다.
 
 **셋업** (`jq` 필요 — 없으면 `apt install jq` / `brew install jq`)
 

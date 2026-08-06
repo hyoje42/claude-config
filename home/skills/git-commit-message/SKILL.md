@@ -9,7 +9,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 
 - Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit.
 - Treat the index as the user's intended commit boundary. When staged changes exist, default the immediate commit proposal to exactly that staged diff; never silently mix unstaged or untracked work into its message or scope.
-- Always report staged, unstaged, untracked, partially staged, and relevant submodule states, even when the proposed commit uses only staged changes.
+- Account for staged, unstaged, untracked, partially staged, and relevant submodule changes, but list each path only once under `Scope` or `Not included`. For a partially staged path included in the scope, describe its remaining unstaged hunks in the same entry.
 - Do not run `git add`, `git restore --staged`, or otherwise change the index until the user approves an exact commit plan. Never stage an entire partially staged file merely to include one unstaged hunk.
 - Always write commit messages in English, even when the conversation is in another language.
 - Follow conventional commit format (feat, fix, refactor, docs, test, chore, etc.).
@@ -31,47 +31,26 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
    - they were created or modified by this agent in the current session, or
    - a submodule's inner state and parent pointer need to be distinguished.
 4. Do not open likely secret or credential files merely because they are untracked. Report the path and risk instead.
-5. Build logical groups:
-   - **Current staged commit**: when staged changes exist, propose exactly those changes as the default immediate commit.
-   - **Related inclusion candidates**: unstaged or untracked work that appears necessary for completeness, especially relevant tests, docs, generated files, or changes made in this session. Recommend inclusion, but keep it outside the staged commit until approved.
-   - **Follow-up commits**: coherent changes that should be committed separately.
-   - **Hold/exclude**: unrelated, user-owned, risky, or unclear changes that should remain untouched.
-6. If staged changes contain unrelated concerns, recommend splitting them and explain why, but do not alter the index. If nothing is staged, propose exact files for each logical commit, prioritizing changes made in this session while clearly flagging pre-existing user changes.
-7. For each proposed commit, state its exact scope, explain why those changes belong together, and provide a commit message. Make a direct recommendation such as: "I propose committing A and B now as `...`, keeping C for a follow-up."
-8. Present the full state and commit plan using the format below, then wait for approval.
+5. Determine the proposed commit scope:
+   - When staged changes exist, use exactly the staged diff as the default immediate scope.
+   - When nothing is staged, select exact files or hunks based on work completed in the current session and logical cohesion.
+   - Put every remaining relevant path under **Not included**, with its current state, a brief description, and why it is excluded or what should happen next.
+6. If staged changes contain unrelated concerns, recommend splitting them and explain why, but do not alter the index. Recommend related unstaged or untracked additions when needed for completeness, but keep them outside a staged scope until approved.
+7. For each proposed commit, state its exact scope, briefly summarize each included change, explain why the changes belong together when it is not obvious, and provide a commit message.
+8. Present the proposal using the format below, then wait for approval.
 9. After approval, apply only the approved staging changes. Re-check `git status --short` and `git diff --staged` immediately before committing; if the staged scope changed from the approved plan, stop and propose the updated plan instead.
 10. After committing, report the commit hash and the remaining staged, unstaged, untracked, and submodule state.
 
 ## Response Format
 
 ````markdown
-## Change State
-
-### Staged — current commit candidate
-- [file-a.ext](absolute/path/to/file-a.ext) (modified)
-
-### Unstaged — not in the current commit
-- [file-b.ext](absolute/path/to/file-b.ext) (modified)
-
-### Untracked — new files
-- [file-c.ext](absolute/path/to/file-c.ext)
-
-### Partially staged / submodules
-- [file-d.ext](absolute/path/to/file-d.ext) — has both staged and unstaged hunks
-- [submodule](absolute/path/to/submodule) — describe inner changes and parent pointer separately
-
-Omit empty groups. Write this analysis in the user's preferred language.
-
-## Proposed Commit Plan
-
-### Commit 1 — commit now
+## Proposed Commit
 
 Scope:
-- file-a.ext
-- staged hunks of file-d.ext
+- [file-a.ext](absolute/path/to/file-a.ext) — [brief change summary]
+- [file-b.ext](absolute/path/to/file-b.ext) — [brief change summary]
 
-Why these belong together:
-- [brief explanation]
+Why: [brief explanation; omit when obvious]
 
 Message:
 
@@ -82,19 +61,12 @@ type: brief description
 migration, or safety impact)
 ```
 
-### Related inclusion candidates
-- file-c.ext — [why it may belong in Commit 1, and that it is not staged]
+## Not included
 
-### Follow-up commits
-- Commit 2: file-b.ext — `type: another description`
+- [file-c.ext](absolute/path/to/file-c.ext) (unstaged) — [brief description]; [why it is excluded or suggested next step]
+- [notes.md](absolute/path/to/notes.md) (untracked) — [brief description]; [why it is not worth committing]
 
-### Hold / exclude
-- [path] — [why it should remain untouched]
+Omit `Not included` when no relevant changes remain outside the proposed scope. When multiple commits are needed, repeat the scope and message for each commit. Write the analysis in the user's preferred language.
 
-Recommendation: I propose committing [exact current scope] now as `[title]`,
-[including an exact additional scope only after approval], and keeping
-[remaining scope] for [a follow-up / later decision].
-
-Wait for the user to approve or revise the scope and message. Do not stage or
-commit while presenting this proposal.
+Wait for the user to approve or revise the scope and message. Do not stage or commit while presenting this proposal.
 ````

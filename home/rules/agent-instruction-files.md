@@ -18,7 +18,9 @@ points, and the work rules an agent needs to act correctly in the repo.
 Keep it concise. Do NOT duplicate detail that already lives elsewhere —
 point to the canonical document (README, design docs, specific source
 files) instead of inlining it. AGENTS.md is an index of rules and
-pointers, not a copy of every document. Add or extend these files only
+pointers, not a copy of every document. This applies to new content too:
+when a topic outgrows a few lines, put it in a separate doc (or the
+README) and leave a one-line pointer. Add or extend these files only
 when an agent genuinely needs the guidance — skip trivial or throwaway repos.
 
 This is a default; an explicit user instruction overrides it.

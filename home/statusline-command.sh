@@ -127,8 +127,11 @@ spend="\033[00;35m\$$(printf '%.2f' "${cost:-0}" 2>/dev/null || printf '0.00')\0
 line2="${model_tag} ${ctx} ${sep} ${tokens} ${sep} ${spend}"
 
 # Absent on this account today, but rendered automatically if the API starts
-# reporting subscription rate limits.
+# reporting subscription rate limits. Truncated to whole percent: the API
+# sends raw floats (e.g. 7.000000001).
 limits=""
+[ -n "$rl5" ] && { rl5=${rl5%%.*}; rl5=${rl5:-0}; }
+[ -n "$rl7" ] && { rl7=${rl7%%.*}; rl7=${rl7:-0}; }
 [ -n "$rl5" ] && limits="${limits} \033[02m5h\033[00m ${rl5}%"
 [ -n "$rl7" ] && limits="${limits} \033[02m7d\033[00m ${rl7}%"
 [ -n "$limits" ] && line2="${line2} ${sep}${limits}"

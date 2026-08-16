@@ -1,6 +1,6 @@
 # Claude Code Config Repo — Work Guide
 
-A submodule of `dev-ai-tools`. For the overview (structure, scripts, machine-specific mechanism, etc.), see [README.md](./README.md). This document holds only the rules an agent must follow when editing/managing this repo.
+A standalone repo; it may also be embedded as a submodule of a meta-repo. For the overview (structure, scripts, machine-specific mechanism, etc.), see [README.md](./README.md). This document holds only the rules an agent must follow when editing/managing this repo.
 
 Path map: only `home/` syncs to `~/.claude/` · `home/settings.json` is the shared baseline · `local/` is the machine override (merge input, git-ignored).
 
@@ -12,7 +12,6 @@ Path map: only `home/` syncs to `~/.claude/` · `home/settings.json` is the shar
 - **Machine-specific values**: commit only the `*.example` in `local/`. The real `settings.override.json` (broad permissions and other machine-specific values) is git-ignored — do not commit it. Keep it **strict JSON** (no comments — jq can't read JSONC, and `//` would clash with the `//` inside `http://` values).
 - **`home/CLAUDE.md` is intentionally empty** — do not fill it (global instructions are managed in `home/rules/`).
 - **Scope context-specific rules with `paths:`**: a rule in `home/rules/` that only applies in a narrow context (Python work, AGENTS.md/CLAUDE.md authoring, etc.) should carry `paths:` frontmatter so it loads only when a matching file is touched; keep truly global rules unscoped. `paths:` is the only supported field for rules, and `@import` loads eagerly (not lazily) — neither defers global rules. See [README.md](./README.md).
-- **Commit order**: commit in the submodule first → then commit the pointer bump in the parent.
 - **Push to every remote**: this repo is mirrored to multiple remotes (conventionally `origin`/`upstream`); when pushing, push to all of them so the mirrors don't diverge, unless the user says to push only some.
 - **Do not port mechanisms blindly**: Claude uses JSON settings merge; Codex uses TOML config merge plus separate runtime wrapper handling. Convert semantics intentionally when moving rules between tools.
 - **Authoring skills**: build new skills using the official examples in `reference-skills/` (a reference-only submodule — do not edit it directly).

@@ -3,14 +3,17 @@
 #
 # Line 1 mirrors ~/.bashrc PS1 (plus the session name when known):
 #   PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-# Line 2: [model effort] bar % context │ Σ session totals │ cost
+# Line 2: [model effort] bar % context │ used · out (session totals) │ cost
 #
 # Two different token numbers, deliberately kept apart:
 #   - context (next to the bar) is one request's size. It drops on compact.
 #     That is what the JSON's total_input_tokens is — the latest response's
 #     input + cache_read + cache_creation, not a session total.
-#   - Σ is the session total, summed from the transcript since the JSON
-#     carries no cumulative counter. "in" includes cache reads and writes.
+#   - used / out are session totals, summed from the transcript since the JSON
+#     carries no cumulative counter. "used" = non-cached input (fresh input +
+#     cache writes) + output, i.e. cache reads excluded — the same definition
+#     as Codex's `used-tokens` status item, so the two status lines agree.
+#     "out" = output tokens (thinking included).
 #
 # Cost is also computed from the transcript (tokens x list price), not from
 # the JSON's cost.total_cost_usd: that value is per-process and resets to 0
@@ -55,23 +58,27 @@ pct=$(printf '%.0f' "${pct:-0}" 2>/dev/null || echo 0)
 # A full reparse costs 54ms on an 8.6MB transcript; resuming from the last
 # offset avoids paying that on every render. Only process when the file ends on
 # a newline, so a half-written line is never counted as a whole one.
-cum_in=0; cum_out=0; cum_cost=0
+cum_used=0; cum_out=0; cum_cost=0
 if [ -n "$transcript" ] && [ -r "$transcript" ]; then
   ccache="/tmp/statusline-cum-${sid}.cache"
-  coff=0; clast=""
-  [ -f "$ccache" ] && IFS='|' read -r coff clast cum_in cum_out cum_cost < "$ccache"
-  # A cache written by the pre-cost format has no 5th field; rescan from zero.
-  [ -z "$cum_cost" ] && { coff=0; clast=""; cum_in=0; cum_out=0; cum_cost=0; }
+  # Cache line: 2|offset|last_id|used|out|cost. The leading "2" is a format
+  # version: the previous format (offset|last_id|in|out|cost) has the same
+  # field count but stores Σ in (cache reads included) where used now lives,
+  # so a missing/other version rescans from zero instead of mixing the two.
+  cver=""; coff=0; clast=""
+  [ -f "$ccache" ] && IFS='|' read -r cver coff clast cum_used cum_out cum_cost < "$ccache"
+  [ "$cver" = "2" ] && [ -n "$cum_cost" ] || { coff=0; clast=""; cum_used=0; cum_out=0; cum_cost=0; }
   fsize=$(stat -c %s "$transcript" 2>/dev/null || echo 0)
-  (( ${coff:-0} > fsize )) && { coff=0; clast=""; cum_in=0; cum_out=0; cum_cost=0; }
+  (( ${coff:-0} > fsize )) && { coff=0; clast=""; cum_used=0; cum_out=0; cum_cost=0; }
   if (( fsize > ${coff:-0} )) && [ -z "$(tail -c 1 "$transcript")" ]; then
     # Fields: id|model|input|cache_read|cache_5m|cache_1h|output ("|" never
-    # appears in ids or model names). Cost accumulates in integer microdollars
+    # appears in ids or model names). used = input + cache_5m + cache_1h +
+    # output (cache_read left out). Cost accumulates in integer microdollars
     # (tokens x $/MTok): every current model prices output at 5x input, so one
     # input rate per family is enough. Cache read bills at 0.1x input, cache
     # writes at 1.25x (5m) / 2x (1h). Unknown models (incl. <synthetic>) count
     # tokens but add no cost.
-    read -r add_in add_out add_cost clast < <(
+    read -r add_used add_out add_cost clast < <(
       tail -c "+$(( coff + 1 ))" "$transcript" 2>/dev/null \
         | jq -r 'select(.message.usage) | .message as $m
             | [ $m.id, ($m.model // ""),
@@ -91,18 +98,18 @@ if [ -n "$transcript" ] && [ -r "$transcript" ]; then
               return 0
             }
             $1!=p {
-              i += $3 + $4 + $5 + $6; o += $7
+              u += $3 + $5 + $6 + $7; o += $7
               r = rin($2)
               c += ($3 + 0.1*$4 + 1.25*$5 + 2*$6) * r + $7 * r * 5
               p = $1
             }
-            END { print i+0, o+0, sprintf("%.0f", c), p }'
+            END { print u+0, o+0, sprintf("%.0f", c), p }'
     )
-    cum_in=$(( ${cum_in:-0} + ${add_in:-0} ))
+    cum_used=$(( ${cum_used:-0} + ${add_used:-0} ))
     cum_out=$(( ${cum_out:-0} + ${add_out:-0} ))
     cum_cost=$(( ${cum_cost:-0} + ${add_cost:-0} ))
     tmp=$(mktemp "${ccache}.XXXXXX" 2>/dev/null)
-    printf '%s|%s|%s|%s|%s' "$fsize" "$clast" "$cum_in" "$cum_out" "$cum_cost" > "$tmp" 2>/dev/null \
+    printf '2|%s|%s|%s|%s|%s' "$fsize" "$clast" "$cum_used" "$cum_out" "$cum_cost" > "$tmp" 2>/dev/null \
       && mv -f "$tmp" "$ccache" 2>/dev/null || rm -f "$tmp" 2>/dev/null
   fi
 fi
@@ -169,7 +176,8 @@ bar=""
 (( empty  > 0 )) && printf -v _e "%${empty}s"  && bar="${bar}${_e// /░}"
 
 ctx="\033[${bar_color}m${bar}\033[00m ${pct}% \033[02m$(human "$tok_in")/$(human "$ctx_size")\033[00m"
-tokens="\033[02mΣ in\033[00m $(human "$cum_in") \033[02mout\033[00m $(human "$cum_out")"
+# Same shape as Codex's status line: "<n> used · <n> out".
+tokens="$(human "$cum_used") \033[02mused\033[00m · $(human "$cum_out") \033[02mout\033[00m"
 # Prefer the transcript-derived cumulative cost: the JSON value is
 # per-process and resets to $0 on resume.
 if [ -n "$transcript" ] && [ -r "$transcript" ]; then

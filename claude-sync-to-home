@@ -1,6 +1,33 @@
 #!/bin/bash
+#
+# repo/home → ~/.claude sync.
+#
+#   claude-sync-to-home            변경을 ~/.claude에 적용한다
+#   claude-sync-to-home --dry-run  적용하지 않고 차이만 보여준다 (= claude-diff-with-home)
+#
+# 구조: plan(무엇이 바뀌는지 계산) → preview(차이 출력) → apply(백업·적용).
+# --dry-run은 plan + preview만 수행한다. 미리보기와 실제 적용이 같은 plan을
+# 공유하므로 "diff가 보여준 것"과 "sync가 하는 것"이 어긋날 수 없다.
 
 set -euo pipefail
+
+DRY_RUN=0
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run|-n) DRY_RUN=1 ;;
+        -h|--help)
+            echo "사용법: $(basename "$0") [--dry-run]"
+            echo "  --dry-run  ~/.claude에 쓰지 않고 차이만 출력한다 (claude-diff-with-home과 동일)"
+            exit 0
+            ;;
+        *)
+            echo "$(basename "$0"): 알 수 없는 옵션: $arg" >&2
+            exit 2
+            ;;
+    esac
+done
+# 오류/안내 메시지에 쓰는 명령 이름. dry-run은 claude-diff-with-home으로 호출된다.
+if [ "$DRY_RUN" -eq 1 ]; then PROG="claude-diff-with-home"; else PROG="claude-sync-to-home"; fi
 
 CLAUDE_REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_SRC="$CLAUDE_REPO/home"
@@ -37,53 +64,77 @@ LOCAL_EXCLUDES=(
     --exclude='*.example'
     --exclude='.synced'
 )
+# LOCAL_EXCLUDES와 같은 조건의 쉘 패턴 판정(find 순회에서 사용).
+is_local_excluded() {
+    case "$1" in
+        settings.override.json|*.example|.synced) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# 우리가 완전히 관리하는 하위 디렉터리. 이 안의 고아 파일(대상에는 있지만
+# 소스에는 없음)은 dry-run에서 보고하고, sync에서는 확인을 거쳐 삭제를 제안한다.
+# home/ 밖의 최상위 대상 파일은 무시한다.
+MANAGED_DIRS=(rules skills agents output-styles)
 
 # merge는 jq에 의존한다. 머신의 settings 위에 baseline만 조용히 미러링해
 # (proxy/CA/권한이 사라짐) 버리느니 요란하게 실패한다.
 command -v jq >/dev/null 2>&1 || {
-    echo "claude-sync-to-home: settings merge에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다. 머신 override를 덮어쓰지 않도록 중단합니다." >&2
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "$PROG: merge된 settings 비교에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다." >&2
+    else
+        echo "$PROG: settings merge에는 'jq'가 필요하지만 PATH에서 찾을 수 없습니다. 머신 override를 덮어쓰지 않도록 중단합니다." >&2
+    fi
     exit 1
 }
+
+# ─────────────────────────────────────────────────────────────────────────
+# plan: 무엇이 바뀌는지 계산한다. 여기서는 ~/.claude에 아무것도 쓰지 않는다.
+# ─────────────────────────────────────────────────────────────────────────
 
 # override의 세 가지 상태: 없음 / 유효 / 무효.
 #   없음   → merge할 것 없음; settings.json은 baseline을 그대로 미러링한다.
 #   유효   → baseline + override를 ~/.claude/settings.json에 merge한다.
 #   무효   → 있지만 strict JSON이 아님(예: 떠도는 // 주석이나 끝 쉼표).
-#             진행을 거부한다: baseline만 조용히 미러링하면 경고 없이
-#             머신의 proxy/CA/권한이 사라진다.
-has_override=0
+#             sync는 진행을 거부한다: baseline만 조용히 미러링하면 경고 없이
+#             머신의 proxy/CA/권한이 사라진다. dry-run은 읽기 전용이라 배너로
+#             경고하고 baseline과 비교한다.
+OVERRIDE_STATE="absent"
 if [ -f "$LOCAL_OVERRIDE" ]; then
     if jq -e 'type == "object"' "$LOCAL_OVERRIDE" >/dev/null 2>&1; then
-        has_override=1
+        OVERRIDE_STATE="valid"
     else
-        echo "⚠ local/settings.override.json이 유효한 JSON이 아닙니다." >&2
-        echo "  sync 거부 — baseline만 그대로 미러링하면 이 머신의 proxy/CA/권한이 사라집니다." >&2
-        echo "  strict JSON으로 고치거나(// 주석 제거) 파일을 삭제한 뒤 다시 실행하세요." >&2
-        exit 1
+        OVERRIDE_STATE="invalid"
     fi
 fi
+if [ "$OVERRIDE_STATE" = "invalid" ] && [ "$DRY_RUN" -eq 0 ]; then
+    echo "⚠ local/settings.override.json이 유효한 JSON이 아닙니다." >&2
+    echo "  sync 거부 — baseline만 그대로 미러링하면 이 머신의 proxy/CA/권한이 사라집니다." >&2
+    echo "  strict JSON으로 고치거나(// 주석 제거) 파일을 삭제한 뒤 다시 실행하세요." >&2
+    exit 1
+fi
+has_override=0
+[ "$OVERRIDE_STATE" = "valid" ] && has_override=1
 
-# home/과 local/의 일반 파일 중 같은 rel_path가 있으면 거부한다. 의도치 않은
-# 덮어쓰기(home sync 후 local이 다시 덮어쓰는)를 막기 위함. settings.json
-# (home)과 settings.override.json(local)은 이름이 달라 자연스럽게 제외된다.
-check_local_duplicates() {
-    [ -d "$LOCAL_SRC" ] || return 0
-    local dup=0
+# home/과 local/의 일반 파일 중 같은 rel_path가 있으면 중복이다. 의도치 않은
+# 덮어쓰기(home sync 후 local이 다시 덮어쓰는)를 막기 위해 sync는 거부하고,
+# dry-run은 경고 배너만 띄우고 계속 진행한다. settings.json(home)과
+# settings.override.json(local)은 이름이 달라 자연스럽게 제외된다.
+local_duplicates=()
+if [ -d "$LOCAL_SRC" ]; then
     while IFS= read -r -d '' lf; do
-        local rel="${lf#$LOCAL_SRC/}"
-        # LOCAL_EXCLUDES와 같은 조건으로 제외 대상은 건너뛴다.
-        case "$rel" in
-            settings.override.json|*.example|.synced) continue ;;
-        esac
-        if [ -f "$CLAUDE_SRC/$rel" ]; then
-            echo "claude-sync-to-home: home/과 local/에 같은 경로가 있습니다: $rel" >&2
-            echo "  중복을 하나로 정리한 뒤 다시 실행하세요 (home/=공통, local/=이 머신 전용)." >&2
-            dup=1
-        fi
+        rel="${lf#$LOCAL_SRC/}"
+        is_local_excluded "$rel" && continue
+        [ -f "$CLAUDE_SRC/$rel" ] && local_duplicates+=("$rel")
     done < <(find "$LOCAL_SRC" -type f -print0 2>/dev/null)
-    [ "$dup" -eq 0 ]
-}
-check_local_duplicates || exit 1
+fi
+if [ ${#local_duplicates[@]} -gt 0 ] && [ "$DRY_RUN" -eq 0 ]; then
+    for rel in "${local_duplicates[@]}"; do
+        echo "$PROG: home/과 local/에 같은 경로가 있습니다: $rel" >&2
+        echo "  중복을 하나로 정리한 뒤 다시 실행하세요 (home/=공통, local/=이 머신 전용)." >&2
+    done
+    exit 1
+fi
 
 # rsync 제외 목록을 만든다. 떠도는 home/settings.local.json은 항상 제외한다
 # (claude가 $HOME에서 실행될 때만 적용돼 — 다른 곳에선 헷갈리는 no-op).
@@ -95,49 +146,234 @@ if [ "$has_override" -eq 1 ]; then
     rsync_excludes+=(--exclude='/settings.json')
 fi
 
-# 우리가 완전히 관리하는 하위 디렉터리. 이 안의 고아 파일(대상에는 있지만
-# 소스에는 없음)은 목록으로 보여주고 확인을 거쳐 삭제를 제안한다.
-MANAGED_DIRS=(rules skills agents output-styles)
+# override가 있으면 merge된 settings.json을 미리 계산해 둔다. 비교와 적용이
+# 같은 결과물을 쓰므로 dry-run이 보여주는 "+" 라인이 곧 sync가 쓰는 내용이다.
+merged_tmp=""
+if [ "$has_override" -eq 1 ]; then
+    merged_tmp="$(mktemp)"
+    trap 'rm -f "$merged_tmp"' EXIT
+    "$MERGE_HELPER" "$CLAUDE_SRC/settings.json" "$LOCAL_OVERRIDE" > "$merged_tmp"
+fi
 
-mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
+# home/의 rel_path에 대해 실제로 비교/적용할 소스 파일과 표시용 라벨을 돌려준다.
+# settings.json은 override가 유효할 때만 merge 결과를 쓴다.
+plan_src_for() {
+    local rel_path="$1"
+    if [ "$rel_path" = "settings.json" ] && [ "$has_override" -eq 1 ]; then
+        echo "$merged_tmp"
+    else
+        echo "$CLAUDE_SRC/$rel_path"
+    fi
+}
+plan_label_for() {
+    local rel_path="$1"
+    if [ "$rel_path" = "settings.json" ] && [ "$has_override" -eq 1 ]; then
+        echo "merged (home/settings.json + local/settings.override.json)"
+    else
+        echo "repo/home/$rel_path"
+    fi
+}
 
+changed_files=()
+new_files=()
+deleted_files=()
+local_changed_files=()
+local_new_files=()
+
+# home/의 모든 파일을 순회한다 (최상위 파일 + 관리 대상 하위 디렉터리 모두 여기서 처리).
+# settings.local.json은 rsync에서도 제외되므로 비교에서도 뺀다.
+while IFS= read -r -d '' repo_file; do
+    rel_path="${repo_file#$CLAUDE_SRC/}"
+    [ "$rel_path" = "settings.local.json" ] && continue
+    home_file="$CLAUDE_HOME/$rel_path"
+    if [ ! -f "$home_file" ]; then
+        new_files+=("$rel_path")
+    elif ! diff -q "$(plan_src_for "$rel_path")" "$home_file" > /dev/null 2>&1; then
+        changed_files+=("$rel_path")
+    fi
+done < <(find "$CLAUDE_SRC" -type f -print0 2>/dev/null)
+
+# local/에만 있는 파일(=이 머신 전용 오버라이드)을 ~/.claude와 비교한다.
+# home/과 중복되는 경로는 위 local_duplicates가 잡고, 여기선 home에 없는 것만.
+if [ -d "$LOCAL_SRC" ]; then
+    while IFS= read -r -d '' local_file; do
+        rel_path="${local_file#$LOCAL_SRC/}"
+        is_local_excluded "$rel_path" && continue
+        [ -f "$CLAUDE_SRC/$rel_path" ] && continue
+        home_file="$CLAUDE_HOME/$rel_path"
+        if [ ! -f "$home_file" ]; then
+            local_new_files+=("$rel_path")
+        elif ! diff -q "$local_file" "$home_file" > /dev/null 2>&1; then
+            local_changed_files+=("$rel_path")
+        fi
+    done < <(find "$LOCAL_SRC" -type f -print0 2>/dev/null)
+fi
+
+# 고아 파일: ~/.claude/<managed>/에 있지만 home/과 local/ 어디에도 없는 파일.
+# local에서 빠진 파일도 어디에도 속하지 않게 돼 여기서 잡힌다(sync는 삭제 제안).
 list_orphans() {
     local d="$1"
     local home_d="$CLAUDE_HOME/$d"
     local src_d="$CLAUDE_SRC/$d"
-    # bare return 대신 return 0을 써서 [ -d ] 실패 상태가
-    # `n=$(... | wc -l)`의 pipefail로 전파돼 set -e에서 스크립트를 중단시키지 않게 한다.
+    # bare return 대신 return 0을 써서 [ -d ] 실패 상태가 set -e에서 스크립트를
+    # 중단시키지 않게 한다.
     [ -d "$home_d" ] || return 0
     while IFS= read -r -d '' f; do
         local rel="${f#$home_d/}"
-        # home/에 있거나 local/에 있으면 고아가 아니다. local에서 온 파일을
-        # home 고아로 잘못 잡아 삭제 제안하는 걸 막는다. local에서 빠지면
-        # 양쪽 모두에 없게 돼 여기서 걸려 자연스럽게 삭제 제안으로 환원된다.
         if [ -f "$src_d/$rel" ] || [ -f "$LOCAL_SRC/$d/$rel" ]; then
             continue
         fi
         echo "$f"
     done < <(find "$home_d" -type f -print0 2>/dev/null)
 }
+for d in "${MANAGED_DIRS[@]}"; do
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        deleted_files+=("${f#$CLAUDE_HOME/}")
+    done < <(list_orphans "$d")
+done
+orphan_count=${#deleted_files[@]}
 
-# 무언가 하기 전에 변경 사항(rsync dry-run)과 고아 파일을 먼저 감지한다
+# ─────────────────────────────────────────────────────────────────────────
+# preview (dry-run): 차이를 출력하고 끝낸다. ~/.claude에는 아무것도 쓰지 않는다.
+# ─────────────────────────────────────────────────────────────────────────
+
+# settings.json을 어떻게 비교하는지 친절히 설명한다. 맨 위(diff 앞)에 출력한다.
+print_settings_note() {
+    case "$OVERRIDE_STATE" in
+        valid)
+            local keys
+            keys=$(jq -r 'keys_unsorted | join(", ")' "$LOCAL_OVERRIDE")
+            echo "ⓘ settings.json = home/settings.json (baseline) + local/settings.override.json (이 머신: $keys)"
+            echo "   diff:  \"-\" 현재 ~/.claude    \"+\" sync가 쓸 내용"
+            ;;
+        invalid)
+            echo "⚠ local/settings.override.json이 유효한 JSON이 아님 → 무시됨 (baseline만 비교)."
+            echo "  고치기 전까지 sync가 거부합니다.  해결: // 주석 제거 후  jq . local/settings.override.json"
+            ;;
+        absent)
+            echo "ⓘ settings.json: 머신 override 없음 — baseline(home/settings.json)으로 비교."
+            echo "   머신 전용 설정 추가:  cp local/settings.override.json.example local/settings.override.json"
+            ;;
+    esac
+}
+
+print_local_duplicate_banner() {
+    [ ${#local_duplicates[@]} -gt 0 ] || return 0
+    echo "⚠ home/과 local/에 같은 경로가 있어 sync가 거부됩니다:"
+    for rel in "${local_duplicates[@]}"; do
+        echo "    $rel"
+    done
+}
+
+print_file_diff() {  # $1=제목 $2=현재(~/.claude) 파일 $3=소스 파일 $4=소스 라벨
+    local title="$1" home_file="$2" src_file="$3" label_src="$4"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  $title"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    # `|| true`로 diff의 exit 1(차이 있음)이 set -e/pipefail에서 스크립트를 중단시키지 않게 한다
+    { diff -u "$home_file" "$src_file" --label "~/.claude/${home_file#$CLAUDE_HOME/}" --label "$label_src" 2>/dev/null || true; } | tail -n +3
+    echo ""
+}
+
+preview() {
+    echo ""
+    echo "repo/home → ~/.claude 비교 중"
+    echo ""
+    print_settings_note
+    print_local_duplicate_banner
+    echo ""
+
+    for rel_path in "${changed_files[@]}"; do
+        print_file_diff "$rel_path" "$CLAUDE_HOME/$rel_path" "$(plan_src_for "$rel_path")" "$(plan_label_for "$rel_path")"
+    done
+    for rel_path in "${local_changed_files[@]}"; do
+        print_file_diff "$rel_path  (local — 이 머신 전용)" "$CLAUDE_HOME/$rel_path" "$LOCAL_SRC/$rel_path" "repo/local/$rel_path"
+    done
+
+    echo "==========================================="
+    echo "  요약"
+    echo "==========================================="
+
+    if [ ${#changed_files[@]} -eq 0 ] && [ ${#new_files[@]} -eq 0 ] && [ ${#deleted_files[@]} -eq 0 ] \
+       && [ ${#local_changed_files[@]} -eq 0 ] && [ ${#local_new_files[@]} -eq 0 ]; then
+        echo "  ✓ 차이 없음 — ~/.claude가 이미 최신입니다."
+    else
+        if [ ${#changed_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  변경됨 (${#changed_files[@]}):"
+            for f in "${changed_files[@]}"; do
+                echo "    M  $f"
+            done
+        fi
+        if [ ${#new_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  repo에 새로 추가 (${#new_files[@]}):"
+            for f in "${new_files[@]}"; do
+                echo "    +  $f"
+            done
+        fi
+        if [ ${#local_changed_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  local 변경됨 — 이 머신 전용 (${#local_changed_files[@]}):"
+            for f in "${local_changed_files[@]}"; do
+                echo "    M  $f  (local)"
+            done
+        fi
+        if [ ${#local_new_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  local에 새로 추가 — 이 머신 전용 (${#local_new_files[@]}):"
+            for f in "${local_new_files[@]}"; do
+                echo "    +  $f  (local)"
+            done
+        fi
+        if [ ${#deleted_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  ~/.claude에만 있음 (${#deleted_files[@]}):"
+            for f in "${deleted_files[@]}"; do
+                echo "    -  $f"
+            done
+        fi
+
+        # 긴 diff 뒤에도 merge 의미가 보이도록 짧게 다시 안내한다.
+        local settings_touched=0 f
+        for f in "${changed_files[@]}" "${new_files[@]}"; do
+            [ "$f" = "settings.json" ] && settings_touched=1
+        done
+        if [ "$settings_touched" -eq 1 ]; then
+            echo ""
+            echo "  ↳ \"+\" 라인 = sync가 ~/.claude/settings.json에 쓰는 내용."
+        fi
+        if [ ${#local_changed_files[@]} -gt 0 ] || [ ${#local_new_files[@]} -gt 0 ]; then
+            echo ""
+            echo "  ↳ local/ 파일은 sync 시 승인 프롬프트를 거쳐 ~/.claude에 덮어쓴다 (이 머신 전용)."
+        fi
+    fi
+
+    echo ""
+}
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    preview
+    exit 0
+fi
+
+# ─────────────────────────────────────────────────────────────────────────
+# apply: 백업 → home/ sync → settings merge → local/ sync(승인) → 고아 삭제(승인)
+# ─────────────────────────────────────────────────────────────────────────
+
+mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
+
+# 실제 적용 여부는 rsync dry-run 기준으로 판단한다(내용뿐 아니라 권한·시각 등
+# rsync가 갱신할 모든 항목 포함).
 sync_changes=$(rsync -an --itemize-changes "${rsync_excludes[@]}" "$CLAUDE_SRC/" "$CLAUDE_HOME/" 2>/dev/null \
     | grep -cE '^[<>ch]' || true)
-orphan_count=0
-for d in "${MANAGED_DIRS[@]}"; do
-    n=$(list_orphans "$d" | wc -l)
-    orphan_count=$((orphan_count + n))
-done
 
-# override가 있으면 merge된 settings.json을 미리 계산해, 이미 ~/.claude에
-# 있는 것과 다른지 본다. 이것은 rsync가 변경 없음으로 보고할 때도 실제
-# 변경이다(예: override 파일만 바뀐 경우).
-merged_tmp=""
+# override가 있으면 merge된 settings.json이 이미 ~/.claude에 있는 것과 다른지
+# 본다. 이것은 rsync가 변경 없음으로 보고할 때도 실제 변경이다(예: override
+# 파일만 바뀐 경우).
 settings_changed=0
 if [ "$has_override" -eq 1 ]; then
-    merged_tmp="$(mktemp)"
-    trap 'rm -f "$merged_tmp"' EXIT
-    "$MERGE_HELPER" "$CLAUDE_SRC/settings.json" "$LOCAL_OVERRIDE" > "$merged_tmp"
     if [ ! -f "$CLAUDE_HOME/settings.json" ] || ! cmp -s "$merged_tmp" "$CLAUDE_HOME/settings.json"; then
         settings_changed=1
     fi
@@ -187,9 +423,7 @@ find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r \
 if [ "$local_count" -gt 0 ] && [ -d "$LOCAL_SRC" ]; then
     while IFS= read -r -d '' lf; do
         lrel="${lf#$LOCAL_SRC/}"
-        case "$lrel" in
-            settings.override.json|*.example|.synced) continue ;;
-        esac
+        is_local_excluded "$lrel" && continue
         lhf="$CLAUDE_HOME/$lrel"
         [ -f "$lhf" ] || continue
         ldst="$backup_target/$lrel"

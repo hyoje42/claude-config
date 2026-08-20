@@ -8,6 +8,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
   - `home/CLAUDE.md` — `~/.claude/CLAUDE.md`를 빈 상태로 두기 위한 placeholder(의도적 빈 파일). 전역 지시는 `home/rules/`로 관리한다.
   - `home/rules/` — Claude Code 전역 규칙(응답 형식·도구 사용·git 커밋·Python·agent 지시 파일 작성 등)
   - `home/skills/` — 커스텀 skill 정의
+  - `home/output-styles/` — output style 정의. `rules/`보다 강한 **시스템 프롬프트 층위**에 놓이는 지침이며, 기본값은 `home/settings.json`의 `outputStyle`로 지정한다(아래 참고).
   - `home/settings.json` — Claude Code 설정의 **공통 baseline**(권한·언어·attribution 기본값 등). git에 커밋되며, 머신 종속 값은 여기 두지 않는다.
 - `local/` — **머신 종속 설정을 두는 곳.** `local/*`는 git-ignored라 이 머신에만 적용된다.
   - `local/settings.override.json` — 이 머신에만 적용할 settings.json 값(광범위 권한 등). sync 대상이 아니라 merge 재료로만 쓰인다.
@@ -26,7 +27,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 작업 흐름
 
-1. 공통 설정은 `home/`(rules·skills·`home/settings.json`)에서, 머신 종속 값은 `local/settings.override.json`에서 수정한다.
+1. 공통 설정은 `home/`(rules·skills·output-styles·`home/settings.json`)에서, 머신 종속 값은 `local/settings.override.json`에서 수정한다.
 2. `./claude-diff-with-home`으로 차이를 확인한다.
 3. 필요할 때 `./claude-sync-to-home`으로 `~/.claude/`에 반영한다.
 4. `git commit`으로 변경 이력을 남긴다(`local/`의 실제 머신 값은 커밋되지 않는다).
@@ -76,6 +77,19 @@ paths:
 
 - 규칙 파일 frontmatter는 **`paths:`만 지원**한다(`description`/`globs`/`alwaysApply` 등은 규칙에선 안 먹는다).
 - `CLAUDE.md`의 `@import`는 lazy가 아니라 **세션 시작 시 본문을 펼치는 eager 로딩**이라 컨텍스트 절약 효과가 없다. "필요할 때만 로드"는 `paths:` frontmatter로(절차·체크리스트형이면 skill로) 처리한다.
+
+## Output style (`home/output-styles/`)
+
+`home/output-styles/*.md`는 `~/.claude/output-styles/`로 sync되고, 어느 것을 쓸지는 `home/settings.json`의 `outputStyle` 값으로 정한다. 현재는 [snflkd/fluent-korean](https://github.com/snflkd/fluent-korean)의 지침에 세부 동작 블록을 덧붙인 `fluent-korean` 하나를 둔다(한국어 출력 품질 교정용).
+
+- **`rules/`와 층위가 다르다**: `rules/`는 첫 사용자 메시지 영역에 주입되지만, output style은 **시스템 프롬프트**에 `# Output Style` 절로 삽입된다. 시스템 프롬프트는 매 턴 재구성되므로 컨텍스트가 압축돼도 유지된다. 준수율이 중요한 지침은 `rules/`가 아니라 여기에 둔다.
+- **`outputStyle`은 baseline에 둔다**: 모든 머신에 공통으로 적용되는 값이므로 `home/settings.json`에 두고, `~/.claude/settings.json`을 직접 고치지 않는다(다음 sync에서 덮어써진다).
+- **디렉터리 안의 md는 전부 개별 스타일로 로드된다**: 조각 파일이나 작성 중인 메모를 이 디렉터리에 두면 안 된다. 완성본만 둔다.
+- **이름이 어긋나면 조용히 기본 스타일로 되돌아간다**: `outputStyle` 값은 frontmatter의 `name`(없으면 파일명)과 일치해야 하는데, 어긋나도 경고가 없다. sync 후 `/config` → Output style 항목을 **열어서** 목록에 description과 함께 뜨는지 확인한다(값 칸의 문자열만으로는 로드 여부를 알 수 없다).
+- **적용에는 새 세션이 필요하다**: 시스템 프롬프트 층위라 `/clear` 또는 새 세션부터 반영된다.
+- **프로젝트 설정이 사용자 설정보다 우선한다**: 특정 프로젝트에서만 적용되지 않으면 그 프로젝트의 `.claude/settings.json`·`.claude/settings.local.json`을 먼저 확인한다(`/config`에서 고른 값은 후자에 기록된다).
+- **이 문서만 한국어로 유지한다**: `rules/`·`skills/`는 영어로 통일하지만, output style은 조사·어미 같은 한국어 형태론 자체를 다루고 조항마다 한국어 예시가 붙어 있어 번역하면 정밀도가 떨어진다. 원본 본문도 요약·변형을 만류하고 있고, 상류와 대조하려면 원문이어야 한다.
+- **상류 갱신은 수동으로 반영한다**: 원본 저장소를 pull한 뒤 diff를 확인하고, 세부 동작 블록을 유지한 채 손으로 옮긴다. 모든 응답을 좌우하는 지침이므로 자동 덮어쓰기를 피한다.
 
 ## Skill 작성 가이드
 

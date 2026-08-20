@@ -97,7 +97,7 @@ fi
 
 # 우리가 완전히 관리하는 하위 디렉터리. 이 안의 고아 파일(대상에는 있지만
 # 소스에는 없음)은 목록으로 보여주고 확인을 거쳐 삭제를 제안한다.
-MANAGED_DIRS=(rules skills agents)
+MANAGED_DIRS=(rules skills agents output-styles)
 
 mkdir -p "$CLAUDE_HOME" "$BACKUP_DIR"
 

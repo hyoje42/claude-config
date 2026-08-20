@@ -24,6 +24,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 - `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사. settings.json은 머신 override가 있으면 merge해서 기록한다(아래 참고). **사용자가 명시적으로 지시했을 때만 실행한다.**
 - `claude-diff-with-home` — `home/`과 `~/.claude/`의 차이 확인. settings.json은 merge 결과를 기준으로 보여준다(= sync하면 무엇이 바뀔지). 실체는 `claude-sync-to-home --dry-run`의 얇은 래퍼라, 무엇이 바뀌는지 계산하는 로직은 `claude-sync-to-home` 한 곳에만 있다(관리 디렉터리 추가 등은 그 파일만 고치면 된다).
 - `claude-merge-settings` — baseline과 override를 deep-merge하는 도구. 위 두 스크립트가 내부적으로 사용한다(`jq` 필요).
+- `tests/settings-merge.sh` — `claude-merge-settings`를 임시 JSON 고정물로 직접 호출해, 중첩 객체 deep-merge·스칼라 override 우선·배열 union(baseline 순서 유지, 중복 제거)·타입 불일치 시 override 승리·무효 override 무시(baseline 그대로)·baseline 오류 시 exit 1을 검증한다.
 - `tests/sync-home.sh` — 임시 HOME과 repo 사본에서 diff/sync를 실행해, dry-run이 아무것도 쓰지 않는지·dry-run이 보고한 항목이 sync에서 그대로 적용되는지·sync 직후 재실행이 멱등한지·무효 override/경로 중복을 거부하는지 검증한다. 실제 `~/.claude`는 건드리지 않는다.
 
 ## 작업 흐름

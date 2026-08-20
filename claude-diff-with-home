@@ -64,7 +64,7 @@ print_settings_note() {
 
 # 우리가 완전히 관리하는 하위 디렉터리. 고아 파일(대상에는 있지만 소스에는
 # 없음)은 이들에 대해서만 보고한다 — home/ 밖의 최상위 대상 파일은 무시한다.
-MANAGED_DIRS=(rules skills agents)
+MANAGED_DIRS=(rules skills agents output-styles)
 
 # home/과 local/에 같은 rel_path가 있으면(중복) 경고 배너를 띄운다. sync는
 # 이 상태를 거부하지만 diff는 읽기 전용이라 경고만 하고 계속 진행한다.

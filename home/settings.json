@@ -70,9 +70,10 @@
       "Read(~/.docker/**)",
       "Read(/etc/**)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
   "language": "korean",
+  "outputStyle": "fluent-korean",
   "attribution": {
     "commit": "",
     "pr": "",

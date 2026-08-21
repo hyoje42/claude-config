@@ -15,11 +15,12 @@
 #     as Codex's `used-tokens` status item, so the two status lines agree.
 #     "out" = output tokens (thinking included).
 #
-# Cost is also computed from the transcript (tokens x list price), not from
-# the JSON's cost.total_cost_usd: that value is per-process and resets to 0
-# on --resume (anthropics/claude-code#13088), while the transcript keeps the
-# whole session. The JSON value is only a fallback when the transcript is
-# unreadable.
+# Cost comes from the JSON's cost.total_cost_usd. That value used to reset to
+# 0 on --resume (anthropics/claude-code#13088), which is why this script once
+# recomputed it from the transcript instead; it now survives resume, and it
+# also counts calls the transcript never records (ai-title regeneration and
+# friends) — the recompute measured ~10% low against it. The transcript figure
+# is kept as the fallback for when the JSON reports nothing, flagged "(!)".
 #
 # Shares its layout with ~/.claude/statusline-internal.sh (the claude-internal
 # variant); that one resolves the real litellm backend model and drops cost.
@@ -50,6 +51,16 @@ IFS=$'\037' read -r cwd model pct tok_in ctx_size effort cost rl5 rl7 sid transc
 
 [ -z "$cwd" ] && cwd=$(pwd)
 pct=$(printf '%.0f' "${pct:-0}" 2>/dev/null || echo 0)
+
+# JSON cost -> integer microdollars ("7.3060465" -> 7306046), so it compares
+# and prints the same way as the transcript total below. Pure shell: this runs
+# on every render, so each avoided process is felt. A value in any other shape
+# (empty, exponent notation) leaves it 0, which selects the fallback.
+json_cost=0
+if [[ $cost =~ ^([0-9]+)(\.([0-9]+))?$ ]]; then
+  _frac="${BASH_REMATCH[3]}000000"
+  json_cost=$(( 10#${BASH_REMATCH[1]} * 1000000 + 10#${_frac:0:6} ))
+fi
 
 # --- session totals (incremental transcript scan) ---------------------------
 # One response is written as several lines (one per content block) and every
@@ -178,14 +189,21 @@ bar=""
 ctx="\033[${bar_color}m${bar}\033[00m ${pct}% \033[02m$(human "$tok_in")/$(human "$ctx_size")\033[00m"
 # Same shape as Codex's status line: "<n> used · <n> out".
 tokens="$(human "$cum_used") \033[02mused\033[00m · $(human "$cum_out") \033[02mout\033[00m"
-# Prefer the transcript-derived cumulative cost: the JSON value is
-# per-process and resets to $0 on resume.
-if [ -n "$transcript" ] && [ -r "$transcript" ]; then
-  spend_txt="$(( cum_cost / 1000000 )).$(printf '%02d' $(( (cum_cost % 1000000) / 10000 )))"
+usd() { printf '%d.%02d' $(( $1 / 1000000 )) $(( ($1 % 1000000) / 10000 )); }
+
+# JSON first. Falling back means the JSON reported nothing while the transcript
+# shows real spend — that should not happen, hence "(!)". Both at zero is just
+# a session before its first response, so it prints a plain $0.00.
+spend_note=""
+if (( json_cost > 0 )); then
+  spend_txt=$(usd "$json_cost")
+elif (( cum_cost > 0 )); then
+  spend_txt=$(usd "$cum_cost")
+  spend_note=" \033[02m(!)\033[00m"
 else
-  spend_txt=$(printf '%.2f' "${cost:-0}" 2>/dev/null || printf '0.00')
+  spend_txt="0.00"
 fi
-spend="\033[00;35m\$${spend_txt}\033[00m"
+spend="\033[00;35m\$${spend_txt}\033[00m${spend_note}"
 
 line2="${model_tag} ${ctx} ${sep} ${tokens} ${sep} ${spend}"
 

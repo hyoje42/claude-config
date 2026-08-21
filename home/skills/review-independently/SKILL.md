@@ -26,7 +26,7 @@ If two plausible interpretations would materially change the review, ask the use
 
 ## Boundaries
 
-- **Judge evidence, not authority.** The author, another agent's confidence, and this session's prior involvement are not evidence. Do not rely on unstated intent to rescue unsupported claims.
+- **Judge evidence, not authority.** The author, another agent's confidence, this session's prior involvement, and your own recollection are not evidence. Do not rely on unstated intent to rescue unsupported claims, and confirm a recalled fact against a source before letting it carry a conclusion.
 - **Do not modify the subject or related artifacts.** Never fix, refactor, reformat, or otherwise change what is being reviewed, and run no state-mutating git commands. Any later edit requires a separate explicit request.
 - **Keep verification side-effect-free.** Reading files, searching code, inspecting git history and state, and read-only source or web lookup are allowed when relevant. Run builds, tests, or scripts only when confident they leave no trace. State important checks that could not be performed safely.
 - **Preserve independent judgment.** Do not read existing `.reviews/` contents unless the user names them as review material or context.
@@ -35,17 +35,17 @@ If two plausible interpretations would materially change the review, ask the use
 ## Workflow
 
 1. **Identify the review question.** Determine whether the user wants correctness checking, a second opinion, risk analysis, comparison, feedback, or an open investigation.
-2. **Understand before judging.** Reconstruct the subject's relevant background, claims, reasoning, assumptions, behavior, and intended outcome. For code, inspect complete files and important definitions or callers rather than diff hunks alone.
-3. **Gather and verify evidence.** Check underlying artifacts, current state, history, cited sources, and authoritative external material when doing so could materially affect the conclusion.
+2. **Understand before judging.** Reconstruct the subject's relevant background, claims, reasoning, assumptions, behavior, and intended outcome. Work from the underlying material rather than a summary of it: for code, inspect complete files and important definitions or callers rather than diff hunks alone; for a document or a pasted response, check the sources, quotations, and figures it rests on; for a design decision or a claim about external behavior, check the specification, documentation, or actual state it depends on.
+3. **Gather and verify evidence.** Check underlying artifacts, current state, history, cited sources, and authoritative external material when doing so could materially affect the conclusion. Look up authoritative external sources — specifications, official documentation, release notes, upstream repositories — whenever the judgment turns on an external tool's current behavior, a version-specific detail, a cited source's actual content, or a fact that may have changed. Prefer primary sources to secondary summaries.
 4. **Analyze independently.** Separate observations, interpretations, and recommendations. Consider counter-evidence, credible alternatives, missing perspectives, and the consequences of acting on the subject.
-5. **Give the opinion in chat.** Lead with the overall judgment, then present the evidence, what holds up, concerns or gaps, and concrete recommendations in the structure best suited to the request. Match depth to complexity and consequence; completeness matters more than length.
+5. **Give the opinion in chat.** Lead with the overall judgment, then present the evidence, what holds up, concerns or gaps, and concrete recommendations in the structure best suited to the request. State what was examined, including material that was checked and found sound and external sources that were consulted, so the reader can judge the review's coverage. Write so the response stands on its own when copied out of this session: name the subject and the artifacts explicitly instead of referring to them as "the file above" or "what you mentioned earlier". Match depth to complexity and consequence; completeness matters more than length.
 6. **Persist only on explicit request.** If the user asks to save, record, document, or write the review, create one file using the storage convention and [references/review-template.md](references/review-template.md). Otherwise create no file.
 
 ## Review Format Rules
 
 - Adapt the response to the subject instead of mechanically filling a fixed template.
-- Cite concrete local evidence as `path:line` and link external sources used for consequential claims.
-- Distinguish factual errors, reasoning gaps, missing context, value judgments, predictions, and stylistic preferences.
+- Cite concrete local evidence as `path:line`, point to non-file material by its own locator (section, heading, page, quoted phrase, or turn), and link external sources used for consequential claims.
+- Distinguish factual errors, reasoning gaps, missing context, value judgments, predictions, and stylistic preferences, and make clear which points would need correcting and which the recipient may reasonably weigh and decline. The review is an opinion offered for judgment, not an instruction to comply with.
 - Give credit to sound reasoning and push back plainly where evidence fails; avoid both automatic agreement and reflexive opposition.
 - For code defects or concrete operational risks, use `critical` / `major` / `minor` / `question` / `nit` findings with `file:line` when severity adds useful information. Do not force that form onto general documents, agent responses, research questions, or decisions.
 - Label inference and uncertainty honestly. Formulate precise open questions where evidence is missing.

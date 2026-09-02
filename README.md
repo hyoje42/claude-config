@@ -65,10 +65,10 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 `home/rules/*.md`는 `~/.claude/`로 sync되어 Claude Code가 **매 세션 자동 로드**한다. 기본값은 본문 전체가 항상 컨텍스트에 올라가는 것이므로, 특정 맥락에서만 필요한 규칙은 frontmatter로 조건부 로딩해서 컨텍스트를 아낀다.
 
-- **전역 규칙**(frontmatter 없음): 매 세션 항상 로드. 예) `response-format.md`, `tool-usage.md`, `git-commit-guidelines.md`
-- **`paths:` 스코프 규칙**: 파일 최상단 YAML frontmatter에 `paths:` glob을 적으면, 매칭되는 파일을 **읽을 때만** 본문이 로드된다(그 전엔 컨텍스트에 없음). 좁은 맥락에서만 쓰는 규칙에 적용한다.
-  - `agent-instruction-files.md` → `**/AGENTS.md`, `**/CLAUDE.md` (지시 파일 작성 시)
+- **전역 규칙**(frontmatter 없음): 매 세션 항상 로드. 예) `response-format.md`, `tool-usage.md`, `git-commit-guidelines.md`, `agent-instruction-files.md`
+- **`paths:` 스코프 규칙**: 파일 최상단 YAML frontmatter에 `paths:` glob을 적으면, 매칭되는 파일을 **Read 도구로 읽을 때만** 본문이 로드된다(그 전엔 컨텍스트에 없음). 좁은 맥락에서만 쓰는 규칙에 적용한다.
   - `python-guidelines.md` → `**/*.py` 등 (Python 작업 시)
+- **`paths:` 트리거의 한계**: 트리거는 **기존 파일의 Read**뿐이다. 매칭 경로에 파일을 Write로 **새로 만들거나**, Bash(`ln`, `printf >` 등)로 만들거나, Edit로 고치는 것은 트리거가 아니다(Write/Edit 트리거는 [issue #38487](https://github.com/anthropics/claude-code/issues/38487)로 미해결. 사용자 전역 `~/.claude/rules/`의 스코프 규칙이 아예 안 뜬다는 보고도 [issue #16853](https://github.com/anthropics/claude-code/issues/16853)에 있다). 따라서 **작업이 매칭 파일을 읽는 것으로 시작하는 규칙만** 스코프한다. `agent-instruction-files.md`는 주 용도가 지시 파일을 **새로 만드는** 시점이라 스코프하면 정작 필요할 때 안 뜨므로 전역으로 둔다(2KB 남짓이라 상시 비용은 작다). Python 규칙은 기존 `.py`를 읽으며 시작하는 것이 보통이라 스코프가 맞는다.
 
 ```markdown
 ---

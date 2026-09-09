@@ -41,7 +41,7 @@
     "defaultMode": "auto"
   },
   "language": "korean",
-  "outputStyle": "fluent-korean",
+  "outputStyle": "fluent-korean-concise",
   "attribution": {
     "commit": "",
     "pr": "",

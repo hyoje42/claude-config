@@ -82,7 +82,12 @@ paths:
 
 ## Output style (`home/output-styles/`)
 
-`home/output-styles/*.md`는 `~/.claude/output-styles/`로 sync되고, 어느 것을 쓸지는 `home/settings.json`의 `outputStyle` 값으로 정한다. 현재는 [snflkd/fluent-korean](https://github.com/snflkd/fluent-korean)의 지침에 세부 동작 블록을 덧붙인 `fluent-korean` 하나를 둔다(한국어 출력 품질 교정용).
+`home/output-styles/*.md`는 `~/.claude/output-styles/`로 sync되고, 어느 것을 쓸지는 `home/settings.json`의 `outputStyle` 값으로 정한다. 현재 두 개를 두며, 활성 스타일은 `fluent-korean-concise`다.
+
+| 스타일 | 출처 | 역할 |
+|---|---|---|
+| `fluent-korean-concise` | 직접 작성 | 활성 스타일. 응답 구성(결과 우선, 분량, 형식, 어조, 상태 공유)과 한국어 문장 품질을 함께 규정한다. |
+| `fluent-korean` | [snflkd/fluent-korean](https://github.com/snflkd/fluent-korean) + 세부 동작 블록 | 상류를 따라가는 대조본. 한국어 출력 품질만 다룬다. |
 
 - **`rules/`와 층위가 다르다**: `rules/`는 첫 사용자 메시지 영역에 주입되지만, output style은 **시스템 프롬프트**에 `# Output Style` 절로 삽입된다. 시스템 프롬프트는 매 턴 재구성되므로 컨텍스트가 압축돼도 유지된다. 준수율이 중요한 지침은 `rules/`가 아니라 여기에 둔다.
 - **`outputStyle`은 baseline에 둔다**: 모든 머신에 공통으로 적용되는 값이므로 `home/settings.json`에 두고, `~/.claude/settings.json`을 직접 고치지 않는다(다음 sync에서 덮어써진다).
@@ -91,7 +96,8 @@ paths:
 - **적용에는 새 세션이 필요하다**: 시스템 프롬프트 층위라 `/clear` 또는 새 세션부터 반영된다.
 - **프로젝트 설정이 사용자 설정보다 우선한다**: 특정 프로젝트에서만 적용되지 않으면 그 프로젝트의 `.claude/settings.json`·`.claude/settings.local.json`을 먼저 확인한다(`/config`에서 고른 값은 후자에 기록된다).
 - **이 문서만 한국어로 유지한다**: `rules/`·`skills/`는 영어로 통일하지만, output style은 조사·어미 같은 한국어 형태론 자체를 다루고 조항마다 한국어 예시가 붙어 있어 번역하면 정밀도가 떨어진다. 원본 본문도 요약·변형을 만류하고 있고, 상류와 대조하려면 원문이어야 한다.
-- **상류 갱신은 수동으로 반영한다**: 원본 저장소를 pull한 뒤 diff를 확인하고, 세부 동작 블록을 유지한 채 손으로 옮긴다. 모든 응답을 좌우하는 지침이므로 자동 덮어쓰기를 피한다.
+- **상류 갱신은 `fluent-korean`에만 수동으로 반영한다**: 원본 저장소를 pull한 뒤 diff를 확인하고, 세부 동작 블록을 유지한 채 손으로 옮긴다. 모든 응답을 좌우하는 지침이므로 자동 덮어쓰기를 피한다. `fluent-korean-concise`는 직접 작성한 문서라 상류 diff를 그대로 적용하지 않고, 반영할 내용이 있는지 판단해서 손으로 옮긴다.
+- **`fluent-korean-concise`는 형식 지침이 충돌하면 Claude Code 기본 작성 규칙에 양보한다**: 서두에 그 우선순위 조항을 두었고, 응답 구성 절에는 하네스가 이미 시스템 프롬프트로 주입하는 규칙과 겹치지 않는 항목(정보 선택, 예외와 우선순위, 한국어 상투구, 뜻이 흐려지는 어휘)만 남겼다. 하네스 버전이 바뀌어도 이 파일을 따라 고칠 필요가 없게 하는 장치이므로 지우지 않는다. 화살표 권장과 헤더 전면 금지처럼 하네스와 정면으로 어긋나던 조항은 2.1.266 기준으로 제거·정렬했다.
 
 ## Skill 작성 가이드
 

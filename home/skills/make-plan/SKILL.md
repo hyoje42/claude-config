@@ -13,14 +13,9 @@ Plans are meant to be reviewed by the user and referenced by future Claude sessi
 
 ## Workflow
 
-1. **Analyze description**: Understand what needs to be planned from the user's description
-2. **Gather context**: Summarize problems found, discussion points, and attempts from the conversation so far; this becomes the plan's required Context section
-3. **Explore the codebase**: Investigate relevant code and project structure needed for planning
-4. **Verify references**: If any files, documents, external material, or prior plans are referenced, read them and cross-check against the actual code. Never trust reference material without verification, and do not copy unverified claims into the plan.
-5. **Determine task name**: Extract a slug from the description (lowercase, hyphen-separated), prefix with KST date (`YYMMDD-{task-name}`) using `TZ='Asia/Seoul' date +"%y%m%d"`
-6. **Check versions**: Look for existing plan files in the task folder (search `*-{task-name}` to match any date-prefixed folder) and determine the next version number
-7. **Write the plan**: Create the markdown file
-8. **Report back**: Show the file path and a brief summary to the user
+1. **Locate the plan**: derive a lowercase, hyphen-separated slug from the description, prefix it with the KST date from `TZ='Asia/Seoul' date +"%y%m%d"`, and pick the next version as described in File Naming Convention and Version Management.
+2. **Ground the plan**: explore the relevant code, and gather the conversation context (problems found, attempts, conclusions) for the required Context section. Read any referenced files, documents, external material, or prior plans from any author, verify their claims against the current code, and do not copy unverified claims into the plan.
+3. **Write and report**: create the markdown file and report its path with a short summary.
 
 ## File Naming Convention
 

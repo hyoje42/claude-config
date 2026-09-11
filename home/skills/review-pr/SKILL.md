@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: "Review pull requests, branches, commits, or staged diffs with a code-review mindset — and, only when the user explicitly asks, draft a PR title and body that the user can paste into GitHub (or any tool) themselves. Trigger on requests like 'review this PR', 'review my branch against main', 'check whether this is safe to merge', 'review the staged changes', 'review my branch and draft a PR', or 'give me a PR title and body for this branch'. Do not use for simple change summaries, commit-message drafting alone, or general codebase exploration without a concrete change set."
+description: "Review pull requests, branches, commits, or staged diffs with a code-review mindset — and, only when the user explicitly asks, draft a PR title and body that the user can paste into GitHub (or any tool) themselves. Trigger on requests like 'review my branch and draft a PR' or 'give me a PR title and body for this branch'. Do not use for simple change summaries, commit-message drafting alone, or general codebase exploration without a concrete change set."
 ---
 
 # Pull Request Review (and Optional PR Draft)
@@ -102,8 +102,14 @@ external CLIs. The user performs every side-effectful step.
 
 ### Preconditions
 
-- The review above must already be complete, so the draft is grounded in real
-  findings rather than guesses.
+- Ground the draft in a review of the same change set: read the diff and the
+  surrounding code for risky hunks, and report the findings concisely with
+  merge-blocking issues first (or say none were found). Carry risks that matter
+  for merging or rollout into the draft's Risk section.
+- Do not run builds or tests on your own for a draft. If the user or the
+  repository's PR template or contribution checklist calls for checks that were
+  not run, list them after presenting the draft and ask the user whether to run
+  them. Report only what was actually run.
 - The change set in the review is the intended PR contents. If the review
   target was a commit range or staged diff with no committed branch, ask the
   user which branch will be the PR head — its name often shapes the title.
@@ -116,16 +122,19 @@ branch for conventions (Conventional Commits prefixes, ticket-ID prefixes, etc.)
 
 ### Drafting The Body
 
-Start from [references/pr-body-template.md](references/pr-body-template.md) and
-fill each section from what the review surfaced:
+If the repository has its own PR template or contribution checklist (for
+example `.github/PULL_REQUEST_TEMPLATE.md`, `.github/pull_request_template.md`,
+or `CONTRIBUTING.md`), follow its structure and check only the items that were
+actually done. Otherwise start from
+[references/pr-body-template.md](references/pr-body-template.md). Either way,
+keep the body short and plain:
 
 - Write the PR title and body in the user's explicitly requested language; if no language is specified, write them in the user's preferred language.
-- **Summary**: what changed and why, in plain language. Do not list every file.
-- **Scope**: what is included and what is intentionally excluded, especially if the branch touches adjacent areas.
-- **Type Of Change**: check the boxes that apply.
+- **Summary**: what changed and why, in a few plain sentences.
+- **Changed files**: group the changed files and give each file or group a one-line reason.
 - **Testing**: what was actually verified (tests added, tests run, manual steps). If coverage is thin, say so — do not claim more than is true.
-- **Risk And Rollout**: surface anything that came up in review — migrations, feature flags, backward-compatibility, rollout order.
-- **Related Issues Or Docs**: include only if the user mentioned them or commit messages reference them. Do not fabricate ticket IDs or links.
+- **Risk**: anything from the review that affects merging or rollout, such as migrations, feature flags, backward compatibility, or rollout order.
+- Mention related issues or docs only if the user mentioned them or commit messages reference them. Do not fabricate ticket IDs or links.
 
 Drop sections that genuinely do not apply rather than leaving them empty.
 
@@ -152,5 +161,4 @@ own CLI, IDE integration).
 - Simple "what changed?" summaries where no review judgment is needed.
 - Drafting only a commit message, with no review and no PR draft.
 - General architecture discussion with no concrete diff, branch, commit, or PR target.
-- A PR draft request with no preceding review — this skill always reviews first; it does not draft PR content from scratch.
 - Anything that requires pushing the branch or opening the PR end-to-end — that is outside this skill's scope and must be done by the user.

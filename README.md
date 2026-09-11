@@ -68,7 +68,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 - **전역 규칙**(frontmatter 없음): 매 세션 항상 로드. 예) `response-format.md`, `tool-usage.md`, `git-commit-guidelines.md`, `agent-instruction-files.md`
 - **`paths:` 스코프 규칙**: 파일 최상단 YAML frontmatter에 `paths:` glob을 적으면, 매칭되는 파일을 **Read 도구로 읽을 때만** 본문이 로드된다(그 전엔 컨텍스트에 없음). 좁은 맥락에서만 쓰는 규칙에 적용한다.
   - `python-guidelines.md` → `**/*.py` 등 (Python 작업 시)
-- **`paths:` 트리거의 한계**: 트리거는 **기존 파일의 Read**뿐이다. 매칭 경로에 파일을 Write로 **새로 만들거나**, Bash(`ln`, `printf >` 등)로 만들거나, Edit로 고치는 것은 트리거가 아니다(Write/Edit 트리거는 [issue #38487](https://github.com/anthropics/claude-code/issues/38487)로 미해결. 사용자 전역 `~/.claude/rules/`의 스코프 규칙이 아예 안 뜬다는 보고도 [issue #16853](https://github.com/anthropics/claude-code/issues/16853)에 있다). 따라서 **작업이 매칭 파일을 읽는 것으로 시작하는 규칙만** 스코프한다. `agent-instruction-files.md`는 주 용도가 지시 파일을 **새로 만드는** 시점이라 스코프하면 정작 필요할 때 안 뜨므로 전역으로 둔다(2KB 남짓이라 상시 비용은 작다). Python 규칙은 기존 `.py`를 읽으며 시작하는 것이 보통이라 스코프가 맞는다.
+- **`paths:` 트리거의 한계**: 트리거는 **기존 파일의 Read**뿐이다. 매칭 경로에 파일을 Write로 **새로 만들거나**, Bash(`ln`, `printf >` 등)로 만들거나, Edit로 고치는 것은 트리거가 아니다(Write/Edit 트리거는 [issue #38487](https://github.com/anthropics/claude-code/issues/38487)로 미해결. 사용자 전역 `~/.claude/rules/`의 스코프 규칙이 아예 안 뜬다는 보고도 [issue #16853](https://github.com/anthropics/claude-code/issues/16853)에 있다). 따라서 **작업이 매칭 파일을 읽는 것으로 시작하는 규칙만** 스코프한다. `agent-instruction-files.md`는 주 용도가 지시 파일을 **새로 만드는** 시점이라 스코프하면 정작 필요할 때 안 뜨므로 전역으로 둔다(1.2KB 남짓이라 상시 비용은 작다). Python 규칙은 기존 `.py`를 읽으며 시작하는 것이 보통이라 스코프가 맞는다.
 
 ```markdown
 ---
@@ -89,15 +89,15 @@ paths:
 | `fluent-korean-concise` | 직접 작성 | 활성 스타일. 응답 구성(결과 우선, 분량, 형식, 어조, 상태 공유)과 한국어 문장 품질을 함께 규정한다. |
 | `fluent-korean` | [snflkd/fluent-korean](https://github.com/snflkd/fluent-korean) + 세부 동작 블록 | 상류를 따라가는 대조본. 한국어 출력 품질만 다룬다. |
 
-- **`rules/`와 층위가 다르다**: `rules/`는 첫 사용자 메시지 영역에 주입되지만, output style은 **시스템 프롬프트**에 `# Output Style` 절로 삽입된다. 시스템 프롬프트는 매 턴 재구성되므로 컨텍스트가 압축돼도 유지된다. 준수율이 중요한 지침은 `rules/`가 아니라 여기에 둔다.
+- **`rules/`와 층위가 다르다**: `rules/`는 CLAUDE.md처럼 시스템 프롬프트 뒤의 사용자 메시지로 들어가지만, output style은 **시스템 프롬프트**에 `# Output Style` 절로 들어가 매 요청에 함께 전송된다. 응답 형식·어조처럼 모든 답변에 적용되고 준수율이 중요한 지침은 `rules/`가 아니라 여기에 둔다. 컨텍스트 압축은 둘을 가르는 기준이 아니다. output style은 압축 후에도 그대로 적용되고, `paths:`가 없는 `rules/`도 압축 후 디스크에서 다시 주입된다([What survives compaction](https://code.claude.com/docs/en/context-window#what-survives-compaction)).
 - **`outputStyle`은 baseline에 둔다**: 모든 머신에 공통으로 적용되는 값이므로 `home/settings.json`에 두고, `~/.claude/settings.json`을 직접 고치지 않는다(다음 sync에서 덮어써진다).
 - **디렉터리 안의 md는 전부 개별 스타일로 로드된다**: 조각 파일이나 작성 중인 메모를 이 디렉터리에 두면 안 된다. 완성본만 둔다.
 - **이름이 어긋나면 조용히 기본 스타일로 되돌아간다**: `outputStyle` 값은 frontmatter의 `name`(없으면 파일명)과 일치해야 하는데, 어긋나도 경고가 없다. sync 후 `/config` → Output style 항목을 **열어서** 목록에 description과 함께 뜨는지 확인한다(값 칸의 문자열만으로는 로드 여부를 알 수 없다).
-- **적용에는 새 세션이 필요하다**: 시스템 프롬프트 층위라 `/clear` 또는 새 세션부터 반영된다.
+- **적용 시점**: 세션 중에 `outputStyle`을 바꾸면 다음 메시지부터 반영된다(v2.1.251 이전에는 `/clear`나 새 세션이 필요했다). 다만 터미널의 Claude Code는 시작할 때 스타일 파일을 읽으므로, sync로 스타일 파일 내용이 바뀌었으면 Claude Code를 다시 시작해야 반영된다([output styles 문서](https://code.claude.com/docs/en/output-styles)).
 - **프로젝트 설정이 사용자 설정보다 우선한다**: 특정 프로젝트에서만 적용되지 않으면 그 프로젝트의 `.claude/settings.json`·`.claude/settings.local.json`을 먼저 확인한다(`/config`에서 고른 값은 후자에 기록된다).
 - **이 문서만 한국어로 유지한다**: `rules/`·`skills/`는 영어로 통일하지만, output style은 조사·어미 같은 한국어 형태론 자체를 다루고 조항마다 한국어 예시가 붙어 있어 번역하면 정밀도가 떨어진다. 원본 본문도 요약·변형을 만류하고 있고, 상류와 대조하려면 원문이어야 한다.
 - **상류 갱신은 `fluent-korean`에만 수동으로 반영한다**: 원본 저장소를 pull한 뒤 diff를 확인하고, 세부 동작 블록을 유지한 채 손으로 옮긴다. 모든 응답을 좌우하는 지침이므로 자동 덮어쓰기를 피한다. `fluent-korean-concise`는 직접 작성한 문서라 상류 diff를 그대로 적용하지 않고, 반영할 내용이 있는지 판단해서 손으로 옮긴다.
-- **`fluent-korean-concise`는 형식 지침이 충돌하면 Claude Code 기본 작성 규칙에 양보한다**: 서두에 그 우선순위 조항을 두었고, 응답 구성 절에는 하네스가 이미 시스템 프롬프트로 주입하는 규칙과 겹치지 않는 항목(정보 선택, 예외와 우선순위, 한국어 상투구, 뜻이 흐려지는 어휘)만 남겼다. 하네스 버전이 바뀌어도 이 파일을 따라 고칠 필요가 없게 하는 장치이므로 지우지 않는다. 화살표 권장과 헤더 전면 금지처럼 하네스와 정면으로 어긋나던 조항은 2.1.266 기준으로 제거·정렬했다.
+- **`fluent-korean-concise`는 형식 지침이 충돌하면 Claude Code 기본 작성 규칙에 양보한다**: 서두에 그 우선순위 조항을 둔다. 하네스가 답변 형식 절을 주입하는지는 모델마다 다르다. Claude Code 2.1.268 기준으로 Fable 계열은 `# Communicating with the user` 절을 받지만 Opus 5에는 그런 절이 없어, Opus 5에서는 이 스타일이 답변 형식의 사실상 유일한 기준이다. 그래서 응답 구성 절(결과 우선, 분량, 형식, 어조, 상태 공유)은 스타일 안에 유지하고, 양보 조항은 하네스 규칙이 있는 모델에서 충돌을 막는 장치로 남긴다. 화살표 권장과 헤더 전면 금지처럼 하네스와 정면으로 어긋나던 조항은 2.1.266 기준으로 제거·정렬했다.
 
 ## Skill 작성 가이드
 

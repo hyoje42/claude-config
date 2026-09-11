@@ -3,11 +3,6 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "allow": [
-      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d-%H%M%S\")",
-      "Bash(TZ='Asia/Seoul' date +\"%y%m%d\")",
-      "Bash(TZ='Asia/Seoul' date +\"%Y-%m-%d\")"
-    ],
     "deny": [
       "Read(./**/.env*)",
       "Read(./**/.git/**)",
@@ -47,7 +42,6 @@
     "pr": "",
     "sessionUrl": false
   },
-  "skipDangerousModePermissionPrompt": true,
   "skipAutoPermissionPrompt": true,
   "statusLine": {
     "type": "command",

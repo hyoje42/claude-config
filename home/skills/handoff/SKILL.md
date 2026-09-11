@@ -48,19 +48,6 @@ Handoffs live in the **project root's** `.handoffs/` directory, shared across co
 6. **Audit for resumability**: assume the reader cannot see the original conversation. Confirm that the file alone explains what the user wants, what is true now, why key decisions were made, what must not be done, what remains uncertain, and exactly how to continue and verify the next action.
 7. **Report back**: give the user the file path and a brief overview of what was captured.
 
-## Writing Checklist
-
-- [ ] User goal, success criteria, scope, and non-goals clear?
-- [ ] Explicit preferences, constraints, approval gates, and prohibitions preserved?
-- [ ] Accepted decisions and rejected/deferred alternatives include their rationale?
-- [ ] Session-only discoveries and failed approaches recorded?
-- [ ] Live state anchored to a verification time, repo root, branch/`HEAD`, and worktree state where applicable?
-- [ ] Verified facts, user decisions, inferences, and open questions clearly distinguished?
-- [ ] Completed (✅) / in-progress (🔄) / pending (⏳) tasks distinguished?
-- [ ] Relevant files and validation results named precisely?
-- [ ] Next steps include accurate paths, commands or concrete actions, expected results, and stop/approval conditions?
-- [ ] Previous handoff integrated and referenced without making it required reading?
-
 ## Best Practices
 
 - **Optimize for recovery, not minimum length**: include all continuation-critical context. Longer is preferable to omitting a constraint, rationale, failed path, or state detail that the next agent would otherwise have to rediscover. Remove repetition only when it adds no information.

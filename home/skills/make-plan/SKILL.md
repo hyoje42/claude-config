@@ -14,9 +14,9 @@ Plans are meant to be reviewed by the user and referenced by future Claude sessi
 ## Workflow
 
 1. **Analyze description**: Understand what needs to be planned from the user's description
-2. **Gather context**: Summarize problems found, discussion points, and attempts from the conversation so far
+2. **Gather context**: Summarize problems found, discussion points, and attempts from the conversation so far; this becomes the plan's required Context section
 3. **Explore the codebase**: Investigate relevant code and project structure needed for planning
-4. **Verify references**: If any files, documents, or prior plans are referenced, read them and cross-check against the actual code. Never trust reference material without verification.
+4. **Verify references**: If any files, documents, external material, or prior plans are referenced, read them and cross-check against the actual code. Never trust reference material without verification, and do not copy unverified claims into the plan.
 5. **Determine task name**: Extract a slug from the description (lowercase, hyphen-separated), prefix with KST date (`YYMMDD-{task-name}`) using `TZ='Asia/Seoul' date +"%y%m%d"`
 6. **Check versions**: Look for existing plan files in the task folder (search `*-{task-name}` to match any date-prefixed folder) and determine the next version number
 7. **Write the plan**: Create the markdown file
@@ -40,7 +40,7 @@ When revising or building on an existing plan:
 
 1. List all files in the task folder
 2. Read the latest file to understand the previous plan
-3. Create a new file with the next version number — never modify existing files
+3. Create a new file with the next version number — never modify existing files, even when revising a plan created earlier in the same session
 4. Reference the previous version at the top of the new file
 
 If plan files from other agents already exist (e.g., `codex-plan.md`, `cursor-plan.md`), continue the version sequence from where they left off. Read those files first, then create `claude-plan-v{N}.md` as the next version.
@@ -109,15 +109,3 @@ When using this template, translate headings and prose into the user's explicitl
 
 - [What this plan intentionally does not cover]
 ```
-
-## Rules
-
-- Plans must be concrete and actionable — include exact file paths and specific changes, not vague instructions
-- Write the plan in the user's explicitly requested language; if no language is specified, write it in the user's preferred language.
-- Explore the codebase thoroughly before writing the plan
-- **Never blindly trust references.** When files, documents, prior plans, or external material are provided, verify them against the actual code before incorporating. Confirm that file paths exist, functions/classes are real, and descriptions match current state. Do not copy unverified claims into the plan.
-- Always include the Context section with conversation background — problems found, things tried, conclusions reached
-- Never modify existing plan files — always create a new version
-- **When creating another plan for the same task within the same session, always create a new versioned file** — never overwrite
-- Create `.plans/` in the workspace root, folder name prefixed with KST date (`YYMMDD-`)
-- Report the file path to the user after writing

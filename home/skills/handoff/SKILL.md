@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: "Use this skill when the user requests a durable, self-contained handoff of the current work for a fresh session or another coding agent. Trigger on requests like \"handoff\", \"save context\", \"summary for next session\", \"export conversation\", \"save work state\", or any request to preserve enough intent, decisions, verified state, constraints, and next actions for later continuation without access to the original session. Do NOT use for general summarization, code explanation, or documentation unrelated to handing work off."
+disable-model-invocation: true
 ---
 
 # Handoff
@@ -28,32 +29,26 @@ Handoffs live in the **project root's** `.handoffs/` directory, shared across co
 ## Workflow
 
 1. **Check existing handoffs** (when continuing work): search any date-prefixed folder for the task — `ls -dt .handoffs/*-{task-slug} 2>/dev/null | head -5`. Read the most recent handoff file **regardless of author prefix** and integrate any still-relevant context so the new handoff remains self-contained. Reference the previous file for provenance, but do not require the next agent to follow a chain of handoffs.
-2. **Recover the session's intent**:
+2. **Recover the session's intent and classify what you know**:
    - State the user's goal and concrete success criteria.
    - Preserve explicit constraints, preferences, approval gates, and "do not" instructions. Use the user's exact wording when paraphrasing could change the meaning.
    - Record decisions with their rationale, plus rejected or deferred alternatives and why they were not chosen.
    - Capture discoveries, failed approaches, and other context that exists only in the conversation rather than the repository.
+   - Mark each claim as **verified state** (directly observed in files, Git state, command output, or an authoritative source), a **user/session decision** (explicitly stated or agreed in the conversation), an **inference or assumption** (plausible but not confirmed; say what would verify it), or an **open question** (requires the user, another agent, or a future check).
 3. **Verify the live state before writing**:
    - Identify the workspace/repository root and, when applicable, the current branch and `HEAD`.
    - Inspect the current worktree state and relevant diffs; distinguish staged, unstaged, untracked, and committed work when that distinction matters.
    - Confirm that referenced files and paths still exist.
    - Record the exact validation commands already run and their observed results. Re-run only safe, relevant checks when needed to avoid recording stale claims.
    - Do not mutate, sync, commit, or otherwise change the work merely to prepare the handoff.
-4. **Separate kinds of knowledge**:
-   - **Verified state** — directly observed in files, Git state, command output, or an authoritative source.
-   - **User/session decisions** — explicitly stated or agreed in the conversation.
-   - **Inference or assumption** — plausible but not confirmed; say what would verify it.
-   - **Open question** — requires the user, another agent, or a future check.
-5. **Create the handoff file** at the path above, following [references/handoff-template.md](references/handoff-template.md). Include a source session ID/link only when one is available; the handoff must still stand alone without it.
-6. **Audit for resumability**: assume the reader cannot see the original conversation. Confirm that the file alone explains what the user wants, what is true now, why key decisions were made, what must not be done, what remains uncertain, and exactly how to continue and verify the next action.
-7. **Report back**: give the user the file path and a brief overview of what was captured.
+4. **Create the handoff file** at the path above, following [references/handoff-template.md](references/handoff-template.md). Include a source session ID/link only when one is available; the handoff must still stand alone without it.
+5. **Audit for resumability**: assume the reader cannot see the original conversation. Confirm that the file alone explains what the user wants, what is true now, why key decisions were made, what must not be done, what remains uncertain, and exactly how to continue and verify the next action.
+6. **Report back**: give the user the file path and a brief overview of what was captured.
 
 ## Best Practices
 
 - **Optimize for recovery, not minimum length**: include all continuation-critical context. Longer is preferable to omitting a constraint, rationale, failed path, or state detail that the next agent would otherwise have to rediscover. Remove repetition only when it adds no information.
 - **Preserve what the repository cannot**: prioritize user intent, decision rationale, rejected alternatives, approval boundaries, and lessons from failed attempts. Link to repository documentation instead of copying it unless its current implication is itself important.
 - **Use stable anchors**: exact file paths, symbols, commit IDs, commands, and observed results. Do not rely on volatile line numbers or conversational references such as "the previous option" without restating them.
-- **Be operational**: the next agent should be able to verify drift and start the next action without rereading the original conversation.
-- **Be explicit about uncertainty**: never turn an inference, remembered claim, or stale external state into a verified fact.
 - **Write tool-neutral**: the reader may not be a Claude instance. Avoid instructions that only work in this tool.
 - **Match the user's language**: write the handoff in the user's explicitly requested language; if no language is specified, write it in the user's preferred language.

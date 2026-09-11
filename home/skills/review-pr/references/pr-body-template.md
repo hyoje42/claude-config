@@ -1,39 +1,25 @@
 <!--
-Default PR body template. Used when this skill drafts PR content for the user
-to open themselves (via the browser or any tool of their choice). Fill each
-section from what you learned during the review. Drop sections that genuinely
-do not apply rather than leaving them empty. Do not fabricate ticket IDs or
-links — include them only if the user or commit messages reference them.
+Default PR body template, used only when the repository has no PR template of
+its own. Fill each section from the review and the diff, and keep it short.
+Drop sections that genuinely do not apply rather than leaving them empty. Do not
+fabricate ticket IDs or links.
 Translate headings and prose into the user's explicitly requested language; if
 no language is specified, use the user's preferred language. Keep file paths,
-code identifiers, commands, checkboxes, and links unchanged.
+code identifiers, commands, and links unchanged.
 -->
 
 ## Summary
 
-<!-- What changed, and why does it need to change? -->
+<!-- What changed, and why? A few plain sentences. -->
 
-## Scope
+## Changed files
 
-<!-- What is included here, and what is intentionally left out? -->
-
-## Type Of Change
-
-- [ ] Feature
-- [ ] Bug fix
-- [ ] Refactor
-- [ ] Documentation
-- [ ] Configuration or infrastructure
-- [ ] Data or schema change
+<!-- Group the changed files; one line per file or group explaining why it changed. -->
 
 ## Testing
 
-<!-- What did you test? If coverage is missing, say why. -->
+<!-- What was actually run or verified. If nothing was run, say so. -->
 
-## Risk And Rollout
+## Risk
 
-<!-- Deployment steps, migrations, feature flags, rollback notes, or user-facing risk. -->
-
-## Related Issues Or Docs
-
-<!-- Link tickets, PRs, runbooks, docs, or design notes. -->
+<!-- Migrations, feature flags, compatibility, or rollout order. Omit if none. -->

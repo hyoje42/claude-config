@@ -7,7 +7,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 
 ## Commit Rules
 
-- Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit.
+- Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit. An approval covers only the proposal it answers; after further edits, propose again even if the user earlier said to commit and push.
 - Treat the index as the user's intended commit boundary. When staged changes exist, default the immediate commit proposal to exactly that staged diff; never silently mix unstaged or untracked work into its message or scope.
 - Account for staged, unstaged, untracked, partially staged, and relevant submodule changes, but list each path only once under `Scope` or `Not included`. For a partially staged path included in the scope, describe its remaining unstaged hunks in the same entry.
 - Do not run `git add`, `git restore --staged`, or otherwise change the index until the user approves an exact commit plan. Never stage an entire partially staged file merely to include one unstaged hunk.
@@ -22,7 +22,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 ## Workflow
 
 1. Read the repository's applicable agent instructions and commit rules. Respect repository boundaries and required submodule commit order.
-2. Inventory the whole working tree with `git status --short`. Classify every relevant path as staged, unstaged, untracked, partially staged, or a submodule state. A path with both index and worktree changes belongs in the partially staged group.
+2. Inventory the whole working tree with `git status --short --branch`. Classify every relevant path as staged, unstaged, untracked, partially staged, or a submodule state. A path with both index and worktree changes belongs in the partially staged group.
 3. Inspect the staged diff in detail with `git diff --staged`. Always know the paths and statuses of other changes, but inspect their content only when:
    - nothing is staged,
    - they are needed to understand the staged change,
@@ -38,7 +38,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 6. If staged changes contain unrelated concerns, recommend splitting them and explain why, but do not alter the index. Recommend related unstaged or untracked additions when needed for completeness, but keep them outside a staged scope until approved.
 7. For each proposed commit, state its exact scope, briefly summarize each included change, explain why the changes belong together when it is not obvious, and provide a commit message.
 8. Present the proposal using the format below, then wait for approval.
-9. After approval, apply only the approved staging changes. Re-check `git status --short` and `git diff --staged` immediately before committing; if the staged scope changed from the approved plan, stop and propose the updated plan instead.
+9. After approval, apply only the approved staging changes. Re-check `git status --short --branch` and `git diff --staged` immediately before committing; if the staged scope changed from the approved plan, stop and propose the updated plan instead.
 10. After committing, report the commit hash and the remaining staged, unstaged, untracked, and submodule state.
 
 ## Response Format

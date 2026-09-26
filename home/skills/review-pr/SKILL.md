@@ -13,12 +13,11 @@ title and body. The skill never pushes the branch, never opens the PR, and
 never calls external tools like `gh`. The user performs those steps with
 whatever tools they prefer.
 
-Do not draft PR content on your own initiative, even if the review is clean.
 Do not spend time on cosmetic nits unless the user explicitly asks for style feedback.
 
 ## Usage Examples
 
-Works on **local git refs only**. No remote API, no `gh`, no PR numbers, no URLs. If the change is in a remote PR, check out the branch locally first.
+Works on **local git refs only**; PR numbers and URLs are not supported. If the change is in a remote PR, check out the branch locally first.
 
 ### Slash command: `/review-pr [args]`
 
@@ -28,7 +27,7 @@ Works on **local git refs only**. No remote API, no `gh`, no PR numbers, no URLs
 - `/review-pr --staged` — `git diff --staged`
 - Append `draft` to any of the above to also draft a PR title and body (e.g. `/review-pr <branch> draft`)
 
-Parse args flexibly. If any piece is ambiguous, ask before proceeding — do not guess.
+Parse args flexibly. Ask only when an ambiguity would change which changes get reviewed.
 
 ### Natural language
 
@@ -45,7 +44,7 @@ Same patterns phrased conversationally:
 3. Inspect risky files in surrounding context.
 4. Check tests, docs, and rollout risk.
 5. Report findings first. If there are no material findings, say so explicitly.
-6. If — and only if — the user then asks for a PR title/body draft, proceed to **Draft PR Content**.
+6. If the user asked for a PR title/body draft, continue to **Draft PR Content**.
 
 ## Resolve The Target
 
@@ -97,8 +96,7 @@ Always prioritize:
 
 Trigger phrases: "draft the PR", "give me a PR title and body", "prepare PR
 content", "write the PR description", etc.
-Produce text only. Do not run `git push`, do not open the PR, do not invoke
-external CLIs. The user performs every side-effectful step.
+Produce text only.
 
 ### Preconditions
 
@@ -152,13 +150,11 @@ Body:
 ---
 ```
 
-State explicitly that the PR is not opened. The user needs to push the branch
-and open the PR themselves using whatever workflow they prefer (browser, their
-own CLI, IDE integration).
+End by noting that the PR has not been opened; the user pushes the branch and
+opens it with their own workflow.
 
 ## When Not To Use
 
 - Simple "what changed?" summaries where no review judgment is needed.
 - Drafting only a commit message, with no review and no PR draft.
 - General architecture discussion with no concrete diff, branch, commit, or PR target.
-- Anything that requires pushing the branch or opening the PR end-to-end — that is outside this skill's scope and must be done by the user.

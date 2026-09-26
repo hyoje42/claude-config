@@ -77,6 +77,22 @@ is_local_excluded() {
 # home/ 밖의 최상위 대상 파일은 무시한다.
 MANAGED_DIRS=(rules skills agents output-styles)
 
+# MANAGED_DIRS 안에서 Claude Code가 직접 관리하는 경로. claude.ai 계정에서
+# 동기화한 skill(2.1.280부터 터미널 세션에도 내려받는다)과, 그 skill을 옮겨 두는
+# 휴지통이다. skills 문서가 이 이름을 예약해 두었으므로 고아 검사·백업·빈
+# 디렉터리 정리에서 제외한다.
+HARNESS_OWNED=(skills/synced skills/.trash)
+
+# 관리 디렉터리 $1(절대 경로 $2) 아래에서 HARNESS_OWNED를 빼는 find 조건을
+# NUL 구분으로 출력한다. 사용: mapfile -d '' -t f < <(owned_find_filters d base)
+owned_find_filters() {
+    local d="$1" base="$2" p
+    for p in "${HARNESS_OWNED[@]}"; do
+        [[ "$p" == "$d/"* ]] || continue
+        printf '%s\0' -not -path "$base/${p#"$d/"}" -not -path "$base/${p#"$d/"}/*"
+    done
+}
+
 # merge는 jq에 의존한다. 머신의 settings 위에 baseline만 조용히 미러링해
 # (proxy/CA/권한이 사라짐) 버리느니 요란하게 실패한다.
 command -v jq >/dev/null 2>&1 || {
@@ -218,13 +234,15 @@ list_orphans() {
     # bare return 대신 return 0을 써서 [ -d ] 실패 상태가 set -e에서 스크립트를
     # 중단시키지 않게 한다.
     [ -d "$home_d" ] || return 0
+    local -a skip
+    mapfile -d '' -t skip < <(owned_find_filters "$d" "$home_d")
     while IFS= read -r -d '' f; do
         local rel="${f#$home_d/}"
         if [ -f "$src_d/$rel" ] || [ -f "$LOCAL_SRC/$d/$rel" ]; then
             continue
         fi
         echo "$f"
-    done < <(find "$home_d" -type f -print0 2>/dev/null)
+    done < <(find "$home_d" "${skip[@]}" -type f -print0 2>/dev/null)
 }
 for d in "${MANAGED_DIRS[@]}"; do
     while IFS= read -r f; do
@@ -405,8 +423,12 @@ for d in "${MANAGED_DIRS[@]}"; do
     src="$CLAUDE_HOME/$d"
     [ -d "$src" ] || continue
     dst="$backup_target/$d"
-    mkdir -p "$(dirname "$dst")"
-    cp -a "$src" "$dst"
+    excl=()
+    for p in "${HARNESS_OWNED[@]}"; do
+        [[ "$p" == "$d/"* ]] && excl+=(--exclude="/${p#"$d/"}")
+    done
+    mkdir -p "$dst"
+    rsync -a "${excl[@]}" "$src/" "$dst/"
 done
 for f in "$CLAUDE_SRC"/*; do
     [ -f "$f" ] || continue
@@ -475,7 +497,8 @@ for d in "${MANAGED_DIRS[@]}"; do
     read -r -p "이 ${#orphans[@]}개 파일을 삭제할까요? [y/N]: " ans || ans=""
     if [[ "$ans" =~ ^[Yy]$ ]]; then
         for o in "${orphans[@]}"; do rm -v "$o"; done
-        find "$CLAUDE_HOME/$d" -type d -empty -delete 2>/dev/null || true
+        mapfile -d '' -t skip < <(owned_find_filters "$d" "$CLAUDE_HOME/$d")
+        find "$CLAUDE_HOME/$d" -type d -empty "${skip[@]}" -delete 2>/dev/null || true
     else
         echo "건너뜀."
     fi

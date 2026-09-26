@@ -21,7 +21,7 @@ Claude Code를 더 편하게 사용하기 위한 커스텀 skill, rule, 설정�
 
 ## 스크립트
 
-- `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사. settings.json은 머신 override가 있으면 merge해서 기록한다(아래 참고). **사용자가 명시적으로 지시했을 때만 실행한다.**
+- `claude-sync-to-home` — `home/` 내용을 `~/.claude/`로 복사. settings.json은 머신 override가 있으면 merge해서 기록한다(아래 참고). **사용자가 명시적으로 지시했을 때만 실행한다.** `rules`·`skills`·`agents`·`output-styles`는 repo가 관리하는 디렉터리라 repo에 없는 파일을 고아로 보고 삭제를 제안한다. 다만 Claude Code가 직접 관리하는 `skills/synced/`(claude.ai 계정 skill 동기화, 2.1.280부터 터미널 세션에도 내려받음)와 `skills/.trash/`는 고아 검사·백업·빈 디렉터리 정리에서 제외한다.
 - `claude-diff-with-home` — `home/`과 `~/.claude/`의 차이 확인. settings.json은 merge 결과를 기준으로 보여준다(= sync하면 무엇이 바뀔지). 실체는 `claude-sync-to-home --dry-run`의 얇은 래퍼라, 무엇이 바뀌는지 계산하는 로직은 `claude-sync-to-home` 한 곳에만 있다(관리 디렉터리 추가 등은 그 파일만 고치면 된다).
 - `claude-merge-settings` — baseline과 override를 deep-merge하는 도구. 위 두 스크립트가 내부적으로 사용한다(`jq` 필요).
 - `tests/settings-merge.sh` — `claude-merge-settings`를 임시 JSON 고정물로 직접 호출해, 중첩 객체 deep-merge·스칼라 override 우선·배열 union(baseline 순서 유지, 중복 제거)·타입 불일치 시 override 승리·무효 override 무시(baseline 그대로)·baseline 오류 시 exit 1을 검증한다.

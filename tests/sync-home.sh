@@ -59,6 +59,9 @@ cp "$FX/home/rules/python-guidelines.md" "$H/rules/"                            
 echo orphan > "$H/rules/zzz-orphan.md"                                                         # 고아(rules)
 echo orphan > "$H/skills/foo/SKILL.md"                                                         # 고아(skills)
 echo orphan > "$H/output-styles/old.md"                                                        # 고아(output-styles)
+mkdir -p "$H/skills/synced/acct/pdf" "$H/skills/synced/acct/empty" "$H/skills/.trash/old"
+echo synced > "$H/skills/synced/acct/pdf/SKILL.md"                                             # Claude Code 소유: 보존
+echo trashed > "$H/skills/.trash/old/SKILL.md"                                                 # Claude Code 소유: 보존
 echo '{"old":true}' > "$H/settings.json"                                                       # stale settings
 echo unrelated > "$H/unrelated.json"                                                           # 관리 밖 파일
 echo '{"x":1}' > "$H/settings.local.json"                                                      # sync가 건드리면 안 됨
@@ -81,6 +84,8 @@ has "$out" 'http://p:1'                    || fail "dry-run의 settings.json 내
 lacks "$out" "rules/python-guidelines.md"  || fail "동일한 파일을 변경으로 언급했습니다."
 lacks "$out" "settings.local.json"         || fail "sync가 제외하는 settings.local.json을 dry-run이 언급했습니다."
 lacks "$out" "unrelated.json"              || fail "관리 밖 파일을 언급했습니다."
+lacks "$out" "skills/synced"               || fail "Claude Code 소유 skills/synced를 언급했습니다."
+lacks "$out" "skills/.trash"               || fail "Claude Code 소유 skills/.trash를 언급했습니다."
 
 run_sync y >/dev/null
 cmp -s "$H/rules/tool-usage.md" "$FX/home/rules/tool-usage.md"          || fail "변경 파일이 갱신되지 않았습니다."
@@ -93,6 +98,10 @@ cmp -s "$H/settings.json" "$TEST_ROOT/s1-merged.json"                  || fail "
 [ ! -e "$H/skills/foo" ]                                                || fail "skills 고아 디렉터리가 정리되지 않았습니다."
 [ ! -e "$H/output-styles/old.md" ]                                      || fail "output-styles 고아 파일이 삭제되지 않았습니다."
 [ "$(cat "$H/unrelated.json")" = "unrelated" ]                          || fail "관리 밖 파일이 손상됐습니다."
+[ -f "$H/skills/synced/acct/pdf/SKILL.md" ]                             || fail "Claude Code 소유 skills/synced가 삭제됐습니다."
+[ -d "$H/skills/synced/acct/empty" ]                                    || fail "skills/synced 안의 빈 디렉터리가 정리됐습니다."
+[ -f "$H/skills/.trash/old/SKILL.md" ]                                  || fail "Claude Code 소유 skills/.trash가 삭제됐습니다."
+! find "$FX/_backup" -path '*/skills/synced*' -print -quit | grep -q .  || fail "skills/synced가 백업에 들어갔습니다."
 [ "$(cat "$H/settings.local.json")" = '{"x":1}' ]                       || fail "settings.local.json이 덮어써졌습니다."
 find "$FX/_backup" -path '*/rules/zzz-orphan.md' -print -quit | grep -q .  || fail "삭제한 고아 파일의 백업이 없습니다."
 find "$FX/_backup" -path '*/rules/local-only.md' -print -quit | grep -q .  || fail "local로 덮어쓴 파일의 백업이 없습니다."

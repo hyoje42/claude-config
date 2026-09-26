@@ -35,8 +35,6 @@
       "Read",
       "Edit",
       "Write",
-      "Glob",
-      "Grep",
       "WebFetch",
       "WebSearch"
     ]

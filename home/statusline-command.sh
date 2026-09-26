@@ -15,12 +15,10 @@
 #     as Codex's `used-tokens` status item, so the two status lines agree.
 #     "out" = output tokens (thinking included).
 #
-# Cost comes from the JSON's cost.total_cost_usd. That value used to reset to
-# 0 on --resume (anthropics/claude-code#13088), which is why this script once
-# recomputed it from the transcript instead; it now survives resume, and it
-# also counts calls the transcript never records (ai-title regeneration and
-# friends) — the recompute measured ~10% low against it. The transcript figure
-# is kept as the fallback for when the JSON reports nothing, flagged "(!)".
+# Cost is the JSON's cost.total_cost_usd. It survives --resume (it used to
+# reset to 0, anthropics/claude-code#13088) and counts calls the transcript
+# never records (ai-title regeneration and friends), so the transcript is read
+# for token totals only and the script keeps no price table.
 #
 # Shares its layout with ~/.claude/statusline-internal.sh (the claude-internal
 # variant); that one resolves the real litellm backend model and drops cost.
@@ -52,10 +50,9 @@ IFS=$'\037' read -r cwd model pct tok_in ctx_size effort cost rl5 rl7 sid transc
 [ -z "$cwd" ] && cwd=$(pwd)
 pct=$(printf '%.0f' "${pct:-0}" 2>/dev/null || echo 0)
 
-# JSON cost -> integer microdollars ("7.3060465" -> 7306046), so it compares
-# and prints the same way as the transcript total below. Pure shell: this runs
-# on every render, so each avoided process is felt. A value in any other shape
-# (empty, exponent notation) leaves it 0, which selects the fallback.
+# JSON cost -> integer microdollars ("7.3060465" -> 7306046) for usd() below.
+# Pure shell: this runs on every render, so each avoided process is felt. A
+# value in any other shape (empty, exponent notation) prints as $0.00.
 json_cost=0
 if [[ $cost =~ ^([0-9]+)(\.([0-9]+))?$ ]]; then
   _frac="${BASH_REMATCH[3]}000000"
@@ -69,58 +66,38 @@ fi
 # A full reparse costs 54ms on an 8.6MB transcript; resuming from the last
 # offset avoids paying that on every render. Only process when the file ends on
 # a newline, so a half-written line is never counted as a whole one.
-cum_used=0; cum_out=0; cum_cost=0
+cum_used=0; cum_out=0
 if [ -n "$transcript" ] && [ -r "$transcript" ]; then
   ccache="/tmp/statusline-cum-${sid}.cache"
-  # Cache line: 2|offset|last_id|used|out|cost. The leading "2" is a format
-  # version: the previous format (offset|last_id|in|out|cost) has the same
-  # field count but stores Σ in (cache reads included) where used now lives,
-  # so a missing/other version rescans from zero instead of mixing the two.
+  # Cache line: 3|offset|last_id|used|out. The leading "3" is a format
+  # version: v2 lines also carried a transcript-priced cost, and the unversioned
+  # v1 lines stored Σ in (cache reads included) where used now lives, so any
+  # other version rescans from zero instead of mixing formats.
   cver=""; coff=0; clast=""
-  [ -f "$ccache" ] && IFS='|' read -r cver coff clast cum_used cum_out cum_cost < "$ccache"
-  [ "$cver" = "2" ] && [ -n "$cum_cost" ] || { coff=0; clast=""; cum_used=0; cum_out=0; cum_cost=0; }
+  [ -f "$ccache" ] && IFS='|' read -r cver coff clast cum_used cum_out < "$ccache"
+  [ "$cver" = "3" ] && [ -n "$cum_out" ] || { coff=0; clast=""; cum_used=0; cum_out=0; }
   fsize=$(stat -c %s "$transcript" 2>/dev/null || echo 0)
-  (( ${coff:-0} > fsize )) && { coff=0; clast=""; cum_used=0; cum_out=0; cum_cost=0; }
+  (( ${coff:-0} > fsize )) && { coff=0; clast=""; cum_used=0; cum_out=0; }
   if (( fsize > ${coff:-0} )) && [ -z "$(tail -c 1 "$transcript")" ]; then
-    # Fields: id|model|input|cache_read|cache_5m|cache_1h|output ("|" never
-    # appears in ids or model names). used = input + cache_5m + cache_1h +
-    # output (cache_read left out). Cost accumulates in integer microdollars
-    # (tokens x $/MTok): every current model prices output at 5x input, so one
-    # input rate per family is enough. Cache read bills at 0.1x input, cache
-    # writes at 1.25x (5m) / 2x (1h). Unknown models (incl. <synthetic>) count
-    # tokens but add no cost.
-    read -r add_used add_out add_cost clast < <(
+    # Fields: id|input|cache_5m|cache_1h|output ("|" never appears in ids).
+    # used = input + cache_5m + cache_1h + output (cache_read left out).
+    read -r add_used add_out clast < <(
       tail -c "+$(( coff + 1 ))" "$transcript" 2>/dev/null \
         | jq -r 'select(.message.usage) | .message as $m
-            | [ $m.id, ($m.model // ""),
+            | [ $m.id,
                 ($m.usage.input_tokens // 0),
-                ($m.usage.cache_read_input_tokens // 0),
                 ($m.usage.cache_creation.ephemeral_5m_input_tokens // $m.usage.cache_creation_input_tokens // 0),
                 ($m.usage.cache_creation.ephemeral_1h_input_tokens // 0),
                 ($m.usage.output_tokens // 0)
               ] | map(tostring) | join("|")' 2>/dev/null \
         | awk -F'|' -v p="$clast" '
-            function rin(m) {
-              if (m ~ /^claude-(fable|mythos)/) return 10
-              if (m ~ /^claude-opus-4-[01]/)   return 15
-              if (m ~ /^claude-opus/)          return 5
-              if (m ~ /^claude-sonnet/)        return 3
-              if (m ~ /^claude-haiku/)         return 1
-              return 0
-            }
-            $1!=p {
-              u += $3 + $5 + $6 + $7; o += $7
-              r = rin($2)
-              c += ($3 + 0.1*$4 + 1.25*$5 + 2*$6) * r + $7 * r * 5
-              p = $1
-            }
-            END { print u+0, o+0, sprintf("%.0f", c), p }'
+            $1!=p { u += $2 + $3 + $4 + $5; o += $5; p = $1 }
+            END { print u+0, o+0, p }'
     )
     cum_used=$(( ${cum_used:-0} + ${add_used:-0} ))
     cum_out=$(( ${cum_out:-0} + ${add_out:-0} ))
-    cum_cost=$(( ${cum_cost:-0} + ${add_cost:-0} ))
     tmp=$(mktemp "${ccache}.XXXXXX" 2>/dev/null)
-    printf '2|%s|%s|%s|%s|%s' "$fsize" "$clast" "$cum_used" "$cum_out" "$cum_cost" > "$tmp" 2>/dev/null \
+    printf '3|%s|%s|%s|%s' "$fsize" "$clast" "$cum_used" "$cum_out" > "$tmp" 2>/dev/null \
       && mv -f "$tmp" "$ccache" 2>/dev/null || rm -f "$tmp" 2>/dev/null
   fi
 fi
@@ -190,20 +167,7 @@ ctx="\033[${bar_color}m${bar}\033[00m ${pct}% \033[02m$(human "$tok_in")/$(human
 # Same shape as Codex's status line: "<n> used · <n> out".
 tokens="$(human "$cum_used") \033[02mused\033[00m · $(human "$cum_out") \033[02mout\033[00m"
 usd() { printf '%d.%02d' $(( $1 / 1000000 )) $(( ($1 % 1000000) / 10000 )); }
-
-# JSON first. Falling back means the JSON reported nothing while the transcript
-# shows real spend — that should not happen, hence "(!)". Both at zero is just
-# a session before its first response, so it prints a plain $0.00.
-spend_note=""
-if (( json_cost > 0 )); then
-  spend_txt=$(usd "$json_cost")
-elif (( cum_cost > 0 )); then
-  spend_txt=$(usd "$cum_cost")
-  spend_note=" \033[02m(!)\033[00m"
-else
-  spend_txt="0.00"
-fi
-spend="\033[00;35m\$${spend_txt}\033[00m${spend_note}"
+spend="\033[00;35m\$$(usd "$json_cost")\033[00m"
 
 line2="${model_tag} ${ctx} ${sep} ${tokens} ${sep} ${spend}"
 

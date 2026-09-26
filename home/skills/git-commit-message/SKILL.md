@@ -7,7 +7,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 
 ## Commit Rules
 
-- Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit. An approval covers only the proposal it answers; after further edits, propose again even if the user earlier said to commit and push.
+- Never run `git commit` on your own initiative. When asked to commit or to generate a message, propose the message first and run `git commit` only after the user approves. Ambiguous phrasing like "sync to git" does not mean commit. An approval covers only the proposal it answers, because later edits change what the commit would contain; after further edits, propose again even if the user earlier said to commit and push.
 - Treat the index as the user's intended commit boundary. When staged changes exist, default the immediate commit proposal to exactly that staged diff; never silently mix unstaged or untracked work into its message or scope.
 - Account for staged, unstaged, untracked, partially staged, and relevant submodule changes, but list each path only once under `Scope` or `Not included`. For a partially staged path included in the scope, describe its remaining unstaged hunks in the same entry.
 - Do not run `git add`, `git restore --staged`, or otherwise change the index until the user approves an exact commit plan. Never stage an entire partially staged file merely to include one unstaged hunk.
@@ -17,7 +17,7 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 - Use a subject-only message only for small, obvious changes such as typo fixes, formatting-only edits, or narrow single-file docs updates.
 - Add a body when the staged change affects behavior, sync/install flows, configuration, security/secrets handling, migration policy, multiple files, multiple repositories/submodules, or when the "why" is not obvious from the title.
 - When proposing multiple commits, evaluate each commit independently and include a body for any non-trivial commit.
-- Do NOT add AI co-author trailers (e.g., `Co-Authored-By: Claude`, `Co-Authored-By: Codex`) or generator footers (e.g., `🤖 Generated with ...`).
+- Do not add AI co-author trailers (e.g., `Co-Authored-By: Claude`, `Co-Authored-By: Codex`) or generator footers (e.g., `🤖 Generated with ...`).
 
 ## Workflow
 

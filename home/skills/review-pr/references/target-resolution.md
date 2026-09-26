@@ -2,7 +2,7 @@
 
 Resolve the smallest concrete review target that matches the user's request.
 
-This skill works on local git refs only. It does not call GitHub APIs, does not use `gh`, and cannot resolve PR numbers or PR URLs. If the change lives in a remote PR, the user must check out the branch locally first.
+This skill works on local git refs only and cannot resolve PR numbers or PR URLs. If the change lives in a remote PR, the user must check out the branch locally first.
 
 ## Review Modes
 
@@ -95,5 +95,3 @@ Once the target is resolved, gather:
 - changed file list
 - commit list when the review spans multiple commits
 - surrounding code for risky hunks
-
-Do not read every changed file end-to-end if the overview already shows where the real risk is.

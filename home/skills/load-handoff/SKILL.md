@@ -28,7 +28,7 @@ disable-model-invocation: true
 5. **Summarize the restored context and drift** to the user, covering the items in Report below. Do not silently replace the recorded state with the current state; explain material differences.
 6. **Propose the next action**. If the user asked only to load or inspect the handoff, wait for approval before executing it. If the user explicitly asked to resume or continue the recorded work, that authorizes safe next actions already within the handoff's scope; still honor every recorded approval gate and stop condition.
 
-If work remains when the session is ending, suggest creating a new handoff with the handoff skill; write one only when the user asks.
+If work remains and the user says they are stopping or switching tools, suggest creating a new handoff with the handoff skill; write one only when the user asks.
 
 ## Report
 

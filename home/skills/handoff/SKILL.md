@@ -24,7 +24,7 @@ Handoffs live in the **project root's** `.handoffs/` directory, shared across co
 - `{task-slug}` — task name from the conversation, lowercase, hyphens for spaces
 - `claude-` filename prefix identifies the author, so handoffs from other agents (e.g. `codex-handoff-*.md`) can share the same task folder
 - Timestamp — KST: `TZ='Asia/Seoul' date +"%Y-%m-%d-%H%M%S"`. If the exact filename already exists, append `-2`, `-3`, ...
-- **NEVER** save under `~/.claude/` (global folder). The project-level `.handoffs/` keeps handoffs project-specific, out of auto-loaded context, and git-trackable when desired.
+- Do not save under `~/.claude/` (global folder). The project-level `.handoffs/` keeps handoffs project-specific, out of auto-loaded context, and git-trackable when desired.
 
 ## Workflow
 

@@ -1,6 +1,6 @@
 ---
 name: review-independently
-description: "Independently review any material or subject the user provides or identifies, including pasted agent responses, files, documents, code, diffs, current changes, technical questions, system states, and design decisions. Investigate relevant artifacts and sources, verify important claims, and give an evidence-based opinion without relying on the author or prior conversation as authority. Respond in chat by default. Save a self-contained review under .reviews/ only when the user explicitly asks to save, record, or document it. Never modify the subject under review."
+description: "Independently review pasted responses, files, documents, diffs, technical questions, or design decisions against primary evidence and give an opinion in chat; saves to .reviews/ only on request."
 disable-model-invocation: true
 ---
 
@@ -20,7 +20,7 @@ Use the first applicable input:
 4. **"Current changes" or a bare invocation in an active worktree** — inspect `git status`, staged and unstaged diffs, and relevant untracked files. If there are no changes and no other subject is identifiable, ask the user for the subject.
 5. **Several items** — review them together or compare them according to the user's question.
 
-The user may provide requirements, handoffs, prior decisions, or source links as context. Use them to understand the task, but verify important claims against the actual artifact or primary source when possible. Do not auto-discover an existing review file merely because no subject was supplied.
+The user may provide requirements, handoffs, prior decisions, or source links as context. Use them to understand the task, but verify important claims against the actual artifact or primary source when possible.
 
 If two plausible interpretations would materially change the review, ask the user instead of silently choosing one.
 
@@ -29,8 +29,7 @@ If two plausible interpretations would materially change the review, ask the use
 - **Judge evidence, not authority.** The author, another agent's confidence, this session's prior involvement, and your own recollection are not evidence. Do not rely on unstated intent to rescue unsupported claims, and confirm a recalled fact against a source before letting it carry a conclusion.
 - **Do not modify the subject or related artifacts.** Never fix, refactor, reformat, or otherwise change what is being reviewed, and run no state-mutating git commands. Any later edit requires a separate explicit request.
 - **Keep verification side-effect-free.** Reading files, searching code, inspecting git history and state, and read-only source or web lookup are allowed when relevant. Run builds, tests, or scripts only when confident they leave no trace. State important checks that could not be performed safely.
-- **Preserve independent judgment.** Do not read existing `.reviews/` contents unless the user names them as review material or context.
-- **Do not force a peer-review protocol.** Do not require accept/dispute/discuss verdicts, author responses, follow-up rounds, or automatic review-file discovery.
+- **Preserve independent judgment.** Do not read existing `.reviews/` contents unless the user names them as review material or context; another reviewer's conclusions would anchor this one.
 
 ## Workflow
 

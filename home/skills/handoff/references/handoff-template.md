@@ -6,7 +6,7 @@ Keep the Task Mission, Decision Record, Verified Current State, Open Questions, 
 
 Translate section headings and prose into the user's explicitly requested language; if no language is specified, use the user's preferred language. Keep file paths, code identifiers, and commands unchanged.
 
-```markdown
+````markdown
 # [Task/Topic] - HANDOFF
 
 ## Continuity References
@@ -156,7 +156,7 @@ Use "none" when every continuation-critical claim has been verified. Do not pres
 2. Compare the recorded branch, `HEAD`, worktree, files, and external state with the current environment.
 3. Report and resolve meaningful drift before trusting state-dependent claims.
 4. Preserve the explicit user constraints, rejected alternatives, and approval gates above.
-5. Start with Next Action 1 unless new user input changes the priority.
+5. Propose Next Action 1 to the user and wait for their go-ahead before running it.
 
 ---
 
@@ -166,4 +166,4 @@ To locate related handoffs:
 ls -dt .handoffs/*-{task-slug} | head -5                    # Recent task folders
 ls -lt .handoffs/*-{task-slug}/*-handoff-*.md | head -5     # Recent files (any author)
 ```
-```
+````

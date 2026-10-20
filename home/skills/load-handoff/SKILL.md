@@ -1,6 +1,6 @@
 ---
 name: load-handoff
-description: "Use this skill when the user wants to resume work from a previous handoff file. Trigger on requests like \"continue from handoff\", \"resume work\", \"load handoff\", \"resume from handoff\", or when the user provides a handoff file path. Use when the user wants to continue previous work without losing context. The user can provide a handoff file path as an argument, either as a relative path or using @ file reference (e.g., /load-handoff .handoffs/YYMMDD-task-name/claude-handoff-xxx.md or /load-handoff @claude-handoff-xxx.md). Do NOT use for general file reading or tasks unrelated to resuming previous work."
+description: "Resume work from a .handoffs/ handoff file: restore its context, check drift against the live state, and propose the next action."
 disable-model-invocation: true
 ---
 
@@ -8,9 +8,9 @@ disable-model-invocation: true
 
 ## Workflow
 
-1. **Resolve the file path** from args:
-   - Absolute path → use as-is; relative path → resolve from workspace root; `@` file reference → already converted to absolute path
-   - No path provided → list candidates with `ls -lt .handoffs/*/` and ask the user which one to load
+1. **Find the handoff file** from the arguments:
+   - If an `@` reference already attached the file, use that content instead of reading it again; otherwise resolve a relative path from the workspace root.
+   - No path provided → list candidates newest first with `ls -lt .handoffs/*/*-handoff-*.md` and ask the user which one to load
 2. **Read the handoff file**. Handoffs may be from Claude or other agents (`codex-handoff-*.md`, etc.). Treat the file as self-contained even when it links to a source session or previous handoff; follow those references only when the current handoff identifies a genuine gap or the user asks.
 3. **Reconstruct the working model**:
    - User goal, success criteria, scope, and non-goals
@@ -26,7 +26,7 @@ disable-model-invocation: true
    - assumptions or claims that remain unverified
    - user/session decisions that remain binding regardless of repository drift
 5. **Summarize the restored context and drift** to the user, covering the items in Report below. Do not silently replace the recorded state with the current state; explain material differences.
-6. **Propose the next action**. If the user asked only to load or inspect the handoff, wait for approval before executing it. If the user explicitly asked to resume or continue the recorded work, that authorizes safe next actions already within the handoff's scope; still honor every recorded approval gate and stop condition.
+6. **Propose the next action and wait**. Do not start the recorded work on your own, even when the user asked to resume or continue; the user decides after seeing the drift report. Approvals recorded in the handoff came from another session, so ask again before any commit, sync, push, or other gated action, and honor every recorded approval gate and stop condition.
 
 If work remains and the user says they are stopping or switching tools, suggest creating a new handoff with the handoff skill; write one only when the user asks.
 
@@ -41,6 +41,7 @@ Cover every item below in the summary to the user. The layout is free, but do no
 - Accepted and rejected decisions
 - Work progress, split into completed, in progress, and pending
 - Unverified claims
+- Open questions and decisions the user must make, with what each blocks
 - First next action, with its expected result and stop condition
 
 ## Error Handling

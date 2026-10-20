@@ -1,73 +1,77 @@
 ---
 name: review-pr
-description: "Review pull requests, branches, commits, or staged diffs with a code-review mindset — and, only when the user explicitly asks, draft a PR title and body that the user can paste into GitHub (or any tool) themselves. Trigger on requests like 'review my branch and draft a PR' or 'give me a PR title and body for this branch'. Do not use for simple change summaries, commit-message drafting alone, or general codebase exploration without a concrete change set."
+description: "Review a pull request the way a reviewer would, for someone else's PR or your own branch before you open one: find bugs and regressions, check that the change does what it claims and is scoped and tested well enough to merge, and, when the user asks, draft a PR title and body they can paste themselves. Accepts a GitHub PR number or URL, a local or GitHub branch, a commit range, or staged changes. Never posts, pushes, or opens the PR. Trigger on requests like 'review my branch and draft a PR' or 'give me a PR title and body for this branch'. Do not use for simple change summaries, commit-message drafting alone, or general codebase exploration without a concrete change set."
 ---
 
 # Pull Request Review (and Optional PR Draft)
 
-Primary mode: review a concrete change set and surface actionable issues.
-Optimize for correctness, regressions, safety, and missing validation.
+Review a change set the way a pull request reviewer would. Requests come in
+three kinds:
 
-Secondary mode, only on explicit user request: after the review, draft a PR
-title and body. The skill never pushes the branch, never opens the PR, and
-never calls external tools like `gh`. The user performs those steps with
-whatever tools they prefer.
+- Review someone else's PR before it merges.
+- Check the user's own branch before they open a PR.
+- Draft a PR title and body, only when the user asks.
+
+Every review looks for bugs first: correctness, regressions, data safety,
+security, and missing validation. On top of that, judge the change as a PR:
+whether it does what its description or commits claim, whether anything
+unrelated is mixed in, and whether it is tested well enough to merge.
+
+The skill may read from GitHub but never writes to it: it never posts comments
+or reviews, approves, merges, pushes, or opens a PR. The user does those steps
+with whatever tools they prefer. Review without checking out other branches, so
+the user's working tree and current branch stay as they are.
 
 Do not spend time on cosmetic nits unless the user explicitly asks for style feedback.
 
 ## Usage Examples
 
-Works on **local git refs only**; PR numbers and URLs are not supported. If the change is in a remote PR, check out the branch locally first.
-
 ### Slash command: `/review-pr [args]`
 
 - `/review-pr` — current branch vs the repository's default branch
-- `/review-pr <branch>` — `<branch>` vs the repository's default branch
+- `/review-pr <pr-number>` or `/review-pr <pr-url>` — a GitHub PR vs its base branch
+- `/review-pr <branch>` — `<branch>` vs the repository's default branch, whether the branch is local or only on GitHub
 - `/review-pr <target> <base>` — `<target>` vs `<base>`
 - `/review-pr --staged` — `git diff --staged`
 - Append `draft` to any of the above to also draft a PR title and body (e.g. `/review-pr <branch> draft`)
 
-Parse args flexibly. Ask only when an ambiguity would change which changes get reviewed.
+Parse args flexibly; they may come mixed with natural language (for example `/review-pr branch-a, focus on the auth changes`). Ask only when an ambiguity would change which changes get reviewed.
 
 ### Natural language
 
 Same patterns phrased conversationally:
 
-- "Review my branch against main"
+- "Review PR 123"
+- "Review my branch against main before I open a PR"
 - "Review the staged changes before I commit"
-- "Review this branch and draft a PR"
-
-## Quick Start
-
-1. Resolve the review target.
-2. Collect the smallest useful diff overview.
-3. Inspect risky files in surrounding context.
-4. Check tests, docs, and rollout risk.
-5. Report findings first. If there are no material findings, say so explicitly.
-6. If the user asked for a PR title/body draft, continue to **Draft PR Content**.
+- "Write a PR description for this branch"
 
 ## Resolve The Target
 
-Read [references/target-resolution.md](references/target-resolution.md) when you need exact resolution rules or command patterns.
+Read [references/target-resolution.md](references/target-resolution.md) for the resolution order, the GitHub and local fallbacks, and command patterns.
 
-Supported review modes (all based on local git refs):
+Supported review modes:
 
-- Branch review: current branch or `<target>` against `<base>` — when `<base>` is omitted, resolve the repository's default branch
+- PR review: a GitHub PR number or URL, reviewed against the PR's base branch
+- Branch review: current branch or `<target>` against `<base>`, whether the branch is local or only on GitHub — when `<base>` is omitted, resolve the repository's default branch
 - Commit review: single commit or explicit commit range
 - Pre-PR review: staged diff or working tree changes
 
-Prefer local refs when they already exist.
+Use `gh` for GitHub data when it is installed and authenticated; otherwise fall back to local git. If neither can reach the change, say what failed and ask the user to set up `gh` (for example with `gh auth login`).
+Prefer local refs when they are current.
 Do not assume `origin/main` — the repo's default branch may differ, and a stale assumption wastes the whole review.
-Do not fetch by default; fetch only if the needed remote ref is missing and remote data is actually required. Network calls cost time and sometimes require credentials the user has not set up in this session.
+Fetch only when the needed ref is missing locally, is stale, or its freshness must be established for a remote review. Network calls cost time and sometimes require credentials the user has not set up in this session.
 
 ## Review Workflow
 
-1. Resolve `{base}` and `{target}` for the requested review mode.
+1. Resolve `{base}` and `{target}` for the requested review mode. When a PR exists, read its title and body first; they state what the change claims to do.
 2. Build an overview with diff stats, changed files, commit list, and merge-base-aware diff where appropriate.
 3. Prioritize risky areas first: auth, permissions, persistence, migrations, config, caching, concurrency, serialization, external API boundaries, and tests.
-4. Read surrounding code for risky hunks instead of reviewing the patch in isolation.
+4. Read surrounding code for risky hunks instead of reviewing the patch in isolation. For a ref that is not checked out, read files with `git show <ref>:<path>`.
 5. Check whether the change introduces missing validation, broken edge cases, unsafe defaults, backward-compatibility issues, or incomplete test coverage.
-6. Write the final review using [references/report-format.md](references/report-format.md).
+6. Check the change as a PR: does it do what its description or commits claim, is anything unrelated mixed in, and is anything it needs missing (tests, docs, migrations, config)?
+7. When the user is checking their own branch before opening a PR, also look for leftovers: debug output, commented-out code, stray TODOs, local-only settings, and related changes still uncommitted that the PR would not include.
+8. Write the final review using [references/report-format.md](references/report-format.md).
 
 ## Review Priorities
 
@@ -91,6 +95,7 @@ Always prioritize:
 - Explain why the issue matters and what change would address it.
 - If you are uncertain, say what assumption the finding depends on.
 - If there are no material findings, state that plainly and mention residual risks or test gaps.
+- For someone else's PR, phrase each finding so the user can paste it as a review comment at that `path:line`.
 
 ## Draft PR Content (only on explicit user request)
 
@@ -100,17 +105,21 @@ Produce text only.
 
 ### Preconditions
 
-- Ground the draft in a review of the same change set: read the diff and the
-  surrounding code for risky hunks, and report the findings concisely with
-  merge-blocking issues first (or say none were found). Carry risks that matter
-  for merging or rollout into the draft's Risk section.
+- When the user asks for a review and a draft together (for example `draft` or
+  "review this branch and draft a PR"), run the full review first, report the
+  findings with merge-blocking issues first, and carry risks that matter for
+  merging or rollout into the draft's Risk section.
+- When the user asks only for the PR title or body, keep the pass light: read
+  the diff, the commit messages, and enough surrounding code to describe the
+  change accurately, and skip the findings report. If you notice a
+  merge-blocking problem along the way, mention it in one line after the draft.
 - Do not run builds or tests on your own for a draft. If the user or the
   repository's PR template or contribution checklist calls for checks that were
   not run, list them after presenting the draft and ask the user whether to run
   them. Report only what was actually run.
-- The change set in the review is the intended PR contents. If the review
-  target was a commit range or staged diff with no committed branch, ask the
-  user which branch will be the PR head — its name often shapes the title.
+- The resolved change set is the intended PR contents. If the target was a
+  commit range or staged diff with no committed branch, ask the user which
+  branch will be the PR head — its name often shapes the title.
 
 ### Drafting The Title
 

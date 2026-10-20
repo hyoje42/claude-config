@@ -46,9 +46,11 @@ description: "Analyze repository changes, separate staged, unstaged, untracked, 
 ````markdown
 ## Proposed Commit
 
+Branch: `<current branch>`
+
 Scope:
-- [file-a.ext](absolute/path/to/file-a.ext) — [brief change summary]
-- [file-b.ext](absolute/path/to/file-b.ext) — [brief change summary]
+- `path/to/file-a.ext` — [brief change summary]
+- `path/to/file-b.ext` — [brief change summary]
 
 Why: [brief explanation; omit when obvious]
 
@@ -63,10 +65,8 @@ migration, or safety impact)
 
 ## Not included
 
-- [file-c.ext](absolute/path/to/file-c.ext) (unstaged) — [brief description]; [why it is excluded or suggested next step]
-- [notes.md](absolute/path/to/notes.md) (untracked) — [brief description]; [why it is not worth committing]
-
-Omit `Not included` when no relevant changes remain outside the proposed scope. When multiple commits are needed, repeat the scope and message for each commit. Write the analysis in the user's preferred language.
-
-Wait for the user to approve or revise the scope and message. Do not stage or commit while presenting this proposal.
+- `path/to/file-c.ext` (unstaged) — [brief description]; [why it is excluded or suggested next step]
+- `notes.md` (untracked) — [brief description]; [why it is not worth committing]
 ````
+
+Write paths relative to the repository root. Omit `Not included` when no relevant changes remain outside the proposed scope. When multiple commits are needed, repeat the scope and message for each commit. Write the analysis in the user's preferred language.

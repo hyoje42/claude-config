@@ -13,9 +13,11 @@ Plans are meant to be reviewed by the user and referenced by future Claude sessi
 
 ## Workflow
 
-1. **Locate the plan**: derive a lowercase, hyphen-separated slug from the description, prefix it with the KST date from `TZ='Asia/Seoul' date +"%y%m%d"`, and pick the next version as described in File Naming Convention and Version Management.
+1. **Locate the plan**: if a folder for this task already exists, use it and pick the next version as described in Version Management. Otherwise create a new folder: derive a lowercase, hyphen-separated slug from the description and prefix it with the KST date from `TZ='Asia/Seoul' date +"%y%m%d"`.
 2. **Ground the plan**: explore the relevant code, and gather the conversation context (problems found, attempts, conclusions) for the required Context section. Read any referenced files, documents, external material, or prior plans from any author, verify their claims against the current code, and do not copy unverified claims into the plan.
 3. **Write and report**: create the markdown file and report its path with a short summary.
+
+If plan mode is active, the `.plans/` file cannot be written yet: present the plan the way plan mode asks, and create the `.plans/` file after the user approves the plan and plan mode ends.
 
 ## File Naming Convention
 
@@ -33,17 +35,18 @@ Plans are meant to be reviewed by the user and referenced by future Claude sessi
 
 When revising or building on an existing plan:
 
-1. List all files in the task folder
-2. Read the latest file to understand the previous plan
-3. Create a new file with the next version number — never modify existing files, even when revising a plan created earlier in the same session
-4. Reference the previous version at the top of the new file
+1. Find the task's existing folder. Match it by meaning, not only by an exact slug, because another session may have derived a slightly different slug for the same task; list `.plans/` when unsure
+2. List all files in the task folder
+3. Read the latest file to understand the previous plan
+4. Create a new file with the next version number in that same folder — never modify existing files, even when revising a plan created earlier in the same session
+5. Reference the previous version at the top of the new file
 
 If plan files from other agents already exist (e.g., `codex-plan.md`, `cursor-plan.md`), continue the version sequence from where they left off. Read those files first, then create `claude-plan-v{N}.md` as the next version.
 
 ```bash
 # Check existing files (including files from other agents)
-# Search by task-name suffix to find any date-prefixed folder
-ls .plans/*-{task-name}/ 2>/dev/null
+# Find the task folder under any date prefix
+ls -d .plans/[0-9][0-9][0-9][0-9][0-9][0-9]-{task-name}/ 2>/dev/null
 
 # Version examples
 # claude-plan.md only             → claude-plan-v2.md

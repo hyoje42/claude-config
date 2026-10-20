@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Use this skill when the user requests a durable, self-contained handoff of the current work for a fresh session or another coding agent. Trigger on requests like \"handoff\", \"save context\", \"summary for next session\", \"export conversation\", \"save work state\", or any request to preserve enough intent, decisions, verified state, constraints, and next actions for later continuation without access to the original session. Do NOT use for general summarization, code explanation, or documentation unrelated to handing work off."
+description: "Write a self-contained handoff file under .handoffs/ so a fresh session or another coding agent can continue the current work."
 disable-model-invocation: true
 ---
 
@@ -41,7 +41,7 @@ Handoffs live in the **project root's** `.handoffs/` directory, shared across co
    - Confirm that referenced files and paths still exist.
    - Record the exact validation commands already run and their observed results. Re-run only safe, relevant checks when needed to avoid recording stale claims.
    - Do not mutate, sync, commit, or otherwise change the work merely to prepare the handoff.
-4. **Create the handoff file** at the path above, following [references/handoff-template.md](references/handoff-template.md). Include a source session ID/link only when one is available; the handoff must still stand alone without it.
+4. **Create the handoff file** at the path above, following [references/handoff-template.md](references/handoff-template.md). This session's ID is `${CLAUDE_SESSION_ID}`; if that still reads as a placeholder, read the `CODEX_THREAD_ID` environment variable instead. Record the ID as the source session so a later session can look up details the handoff left out, or write "not recorded" if neither gives one. The handoff must still stand alone without it.
 5. **Audit for resumability**: assume the reader cannot see the original conversation. Confirm that the file alone explains what the user wants, what is true now, why key decisions were made, what must not be done, what remains uncertain, and exactly how to continue and verify the next action.
 6. **Report back**: give the user the file path and a brief overview of what was captured.
 

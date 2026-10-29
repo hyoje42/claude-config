@@ -1,4 +1,5 @@
 #!/bin/bash
+#   sudo apt install rsync jq
 # repo/home → ~/.claude 차이 미리보기 = claude-sync-to-home의 dry-run.
 # 계산 로직은 claude-sync-to-home 한 곳에만 있어 미리보기와 실제 적용이 어긋나지 않는다.
 exec "$(cd "$(dirname "$0")" && pwd)/claude-sync-to-home" --dry-run "$@"

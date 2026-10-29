@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+#   sudo apt install rsync jq
+#
 # repo/home → ~/.claude sync.
 #
 #   claude-sync-to-home            변경을 ~/.claude에 적용한다

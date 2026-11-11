@@ -11,7 +11,7 @@ disable-model-invocation: true
 1. **Find the handoff file** from the arguments:
    - If an `@` reference already attached the file, use that content instead of reading it again; otherwise resolve a relative path from the workspace root.
    - No path provided → list candidates newest first with `ls -lt .handoffs/*/*-handoff-*.md` and ask the user which one to load
-2. **Read the handoff file**. Handoffs may be from Claude or other agents (`codex-handoff-*.md`, etc.). Treat the file as self-contained even when it links to a source session or previous handoff; follow those references only when the current handoff identifies a genuine gap or the user asks.
+2. **Read the handoff file**. Handoffs may be from Claude or other agents (`codex-handoff-*.md`, etc.). Treat the file as self-contained even when it links to a source session or previous handoff; follow those references only when the current handoff identifies a genuine gap or the user asks. When the handoff records a source session ID and the gap needs that session's details, look them up with the inspect-session skill; the lookup is read-only and leaves the rest of this workflow unchanged.
 3. **Reconstruct the working model**:
    - User goal, success criteria, scope, and non-goals
    - Explicit preferences, prohibitions, and approval gates
@@ -26,7 +26,7 @@ disable-model-invocation: true
    - assumptions or claims that remain unverified
    - user/session decisions that remain binding regardless of repository drift
 5. **Summarize the restored context and drift** to the user, covering the items in Report below. Do not silently replace the recorded state with the current state; explain material differences.
-6. **Propose the next action and wait**. Do not start the recorded work on your own, even when the user asked to resume or continue; the user decides after seeing the drift report. Approvals recorded in the handoff came from another session, so ask again before any commit, sync, push, or other gated action, and honor every recorded approval gate and stop condition.
+6. **Propose the next action, or carry out the one the user named**. By default, propose the next action and wait; invoking this skill alone is not an instruction to start the recorded work. If the user explicitly told you in this session to continue or named the next action (for example, in the invocation arguments), report the drift first and then carry it out; stop and ask only when the drift makes that action unclear or unsafe. Approvals recorded in the handoff came from another session, so ask again before any commit, sync, push, or other gated action, and honor every recorded approval gate and stop condition.
 
 If work remains and the user says they are stopping or switching tools, suggest creating a new handoff with the handoff skill; write one only when the user asks.
 

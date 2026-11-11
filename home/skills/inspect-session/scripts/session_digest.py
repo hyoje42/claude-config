@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -376,6 +377,85 @@ def tool_summary(name, inp, width):
 
 ALWAYS_SHOW_RESULT = {"AskUserQuestion", "ExitPlanMode"}
 FILE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+def state_command(words):
+    """Recognize command positions, never command names inside arguments."""
+    words = [word[1:-1] if len(word) > 1 and word[0] == word[-1] and word[0] in "'\""
+             else word for word in words]
+    while words and re.match(r"^[A-Za-z_]\w*=", words[0]):
+        words = words[1:]
+    if not words:
+        return False
+    name = Path(words[0]).name
+    if name.endswith("sync-to-home"):
+        return not any(flag in words[1:] for flag in ("--dry-run", "-n"))
+    if name != "git":
+        return False
+    args = words[1:]
+    while args and args[0] in ("-C", "-c"):
+        args = args[2:]
+    if not args:
+        return False
+    subcommand, rest = args[0], args[1:]
+    if subcommand in {"commit", "push", "reset", "rebase", "merge", "cherry-pick",
+                      "revert", "checkout", "switch", "restore", "clean", "rm", "mv"}:
+        return True
+    if subcommand == "stash":
+        return not rest or rest[0] not in {"list", "show"}
+    if subcommand == "tag":
+        return bool(rest) and (not rest[0].startswith("-") or
+                              rest[0] in {"-a", "-s", "-d", "-f", "--delete", "--force"})
+    if subcommand == "submodule":
+        return bool(rest) and rest[0] == "update"
+    return subcommand == "branch" and bool(rest) and rest[0] in {"-d", "-D", "-m", "-M"}
+
+
+def state_shell_call(command):
+    """Conservative shell scan; retain the call's control flow, omit heredoc bodies.
+
+    This is not a shell interpreter. Matches are candidates, never proof that
+    a branch ran. Unsupported or unfinished quoting is not guessed.
+    """
+    headers, heredocs = [], []
+    pending = ""
+    found = False
+    for line in command.splitlines():
+        if heredocs:
+            delimiter, strip_tabs = heredocs[0]
+            if (line.lstrip("\t") if strip_tabs else line) == delimiter:
+                heredocs.pop(0)
+            continue
+        pending += line
+        if pending.endswith("\\"):
+            pending = pending[:-1]
+            continue
+        lexer = shlex.shlex(pending, posix=False, punctuation_chars=";&|()<>")
+        lexer.whitespace_split = True
+        try:
+            tokens = list(lexer)
+        except ValueError:
+            pending += "\n"
+            continue
+        headers.append(pending)
+        pending = ""
+        for index, token in enumerate(tokens[:-1]):
+            if token == "<<":
+                delimiter = tokens[index + 1]
+                strip_tabs = delimiter.startswith("-")
+                delimiter = delimiter[1:] if strip_tabs else delimiter
+                if len(delimiter) > 1 and delimiter[0] == delimiter[-1] and delimiter[0] in "'\"":
+                    delimiter = delimiter[1:-1]
+                heredocs.append((delimiter, strip_tabs))
+        words = []
+        for token in tokens + [";"]:
+            if token and all(char in ";&|()" for char in token):
+                found = state_command(words) or found
+                words = []
+            else:
+                words.append(token)
+    if pending or heredocs:
+        return ""
+    return "\n".join(headers) if found else ""
+HANDBACK_FRAME = re.compile(r"\[Subagent hand-back\][^\n]*?The report follows:[ \t]*\n?")
 
 
 def parse_tags(text):
@@ -463,6 +543,8 @@ class Session:
                 tur = rec.get("toolUseResult")
                 if isinstance(tur, dict) and tur.get("interrupted"):
                     res["interrupted"] = True
+                if isinstance(tur, dict) and tur.get("backgroundTaskId"):
+                    res["background"] = True
                 self.results[tid] = res
                 ev = tool_events.get(tid)
                 if ev is not None:
@@ -519,6 +601,12 @@ class Session:
             return
         self._peer_seen.add(key)
         extra = {"queued": True} if queued else {}
+        # The harness wraps subagent reports in a fixed frame and indents the report;
+        # drop the frame so previews start with the report itself.
+        m = HANDBACK_FRAME.match(body)
+        if m:
+            body = re.sub(r"(?m)^  ", "", body[m.end():]).strip()
+            extra["handback"] = True
         self._add("P", rec, body, sender=sender, **extra)
 
     def _assistant(self, rec, tool_events):
@@ -600,6 +688,18 @@ class Session:
     def compactions(self):
         return [e for e in self.events if e["kind"] == "C" and e.get("boundary")]
 
+    def state_ops(self):
+        """Bash calls containing candidate state operations, with call-level results."""
+        ops = []
+        for e in self.events:
+            if e["kind"] != "T" or e.get("tool") != "Bash":
+                continue
+            cmd = (e.get("input") or {}).get("command") or ""
+            command = state_shell_call(cmd)
+            if command:
+                ops.append((e, command))
+        return ops
+
     def changed_files(self):
         c = Counter()
         for e in self.events:
@@ -643,7 +743,7 @@ def fmt_event(ev, clock, width, tool_width, show_results):
         return redact(f"{head}{ev['text']}")
     label = ""
     if k == "P":
-        label = f"from {ev.get('sender') or '?'}: "
+        label = f"from {ev.get('sender') or '?'}{' (subagent report)' if ev.get('handback') else ''}: "
     if ev.get("queued"):
         label = "(sent mid-turn) " + label
     w = width
@@ -712,6 +812,23 @@ def cmd_overview(args, clock):
             print(f"          {p} ×{c}")
         if len(files) > args.files:
             print(f"          … +{len(files) - args.files} more")
+    ops = s.state_ops()
+    if ops:
+        print("git·sync 명령 후보를 포함한 셸 호출 (전체 호출 결과; 개별 실행 여부는 미확인):")
+        for e, line in ops[-args.files:]:
+            res = e.get("result")
+            if res is None:
+                st = "결과 없음"
+            elif res.get("interrupted"):
+                st = "중단됨"
+            elif res.get("background"):
+                st = "실행 중"
+            else:
+                st = "호출 실패" if res.get("error") else "호출 정상 반환"
+            mark = " [rewound]" if e.get("off") else ""
+            print(f"          #{e['n']} {clock.fmt(e['ts'])} {st}{mark}  {redact(one_line(line, 140))}")
+        if len(ops) > args.files:
+            print(f"          … {len(ops) - args.files} earlier op(s) omitted")
     sub = s.path.parent / sid / "subagents"
     if sub.is_dir():
         metas = sorted(sub.glob("agent-*.meta.json"))

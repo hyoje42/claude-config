@@ -1,3 +1,6 @@
 [submodule "reference-skills"]
 	path = reference-skills
 	url = https://github.com/anthropics/skills.git
+[submodule "reference-playbook"]
+	path = reference-playbook
+	url = https://github.com/jha0313/agentic-workflow-playbook.git

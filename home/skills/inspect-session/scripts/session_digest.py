@@ -377,12 +377,30 @@ def tool_summary(name, inp, width):
 
 ALWAYS_SHOW_RESULT = {"AskUserQuestion", "ExitPlanMode"}
 FILE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+# Words that may precede a command in the same simple command.
+SHELL_KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!", "{", "time"}
+COMMAND_PREFIXES = {"sudo", "env", "command", "exec", "nohup", "time"}
+SHELLS = {"bash", "sh", "zsh"}
+GIT_OPTIONS_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+
+
 def state_command(words):
     """Recognize command positions, never command names inside arguments."""
     words = [word[1:-1] if len(word) > 1 and word[0] == word[-1] and word[0] in "'\""
              else word for word in words]
-    while words and re.match(r"^[A-Za-z_]\w*=", words[0]):
-        words = words[1:]
+    while words:
+        head = words[0]
+        if re.match(r"^[A-Za-z_]\w*=", head) or head in SHELL_KEYWORDS:
+            words = words[1:]
+        elif head in COMMAND_PREFIXES:
+            words = words[1:]
+            # Prefix options such as `sudo -E` or `env -i`; `sudo -u USER` takes a value.
+            while words and words[0].startswith("-"):
+                words = words[2:] if words[0] in ("-u", "-g") else words[1:]
+        elif Path(head).name in SHELLS and len(words) > 1 and not words[1].startswith("-"):
+            words = words[1:]
+        else:
+            break
     if not words:
         return False
     name = Path(words[0]).name
@@ -391,12 +409,12 @@ def state_command(words):
     if name != "git":
         return False
     args = words[1:]
-    while args and args[0] in ("-C", "-c"):
-        args = args[2:]
+    while args and args[0].startswith("-"):
+        args = args[2:] if args[0] in GIT_OPTIONS_WITH_ARG else args[1:]
     if not args:
         return False
     subcommand, rest = args[0], args[1:]
-    if subcommand in {"commit", "push", "reset", "rebase", "merge", "cherry-pick",
+    if subcommand in {"commit", "push", "pull", "reset", "rebase", "merge", "cherry-pick",
                       "revert", "checkout", "switch", "restore", "clean", "rm", "mv"}:
         return True
     if subcommand == "stash":
@@ -430,11 +448,17 @@ def state_shell_call(command):
             continue
         lexer = shlex.shlex(pending, posix=False, punctuation_chars=";&|()<>")
         lexer.whitespace_split = True
+        # shlex would start a comment at any `#`, even inside a word such as a URL
+        # fragment; the shell does so only at the start of a word.
+        lexer.commenters = ""
         try:
             tokens = list(lexer)
         except ValueError:
             pending += "\n"
             continue
+        comment = next((i for i, token in enumerate(tokens) if token.startswith("#")), None)
+        if comment is not None:
+            tokens = tokens[:comment]
         headers.append(pending)
         pending = ""
         for index, token in enumerate(tokens[:-1]):
@@ -455,6 +479,8 @@ def state_shell_call(command):
     if pending or heredocs:
         return ""
     return "\n".join(headers) if found else ""
+
+
 HANDBACK_FRAME = re.compile(r"\[Subagent hand-back\][^\n]*?The report follows:[ \t]*\n?")
 
 
@@ -815,20 +841,20 @@ def cmd_overview(args, clock):
     ops = s.state_ops()
     if ops:
         print("git·sync 명령 후보를 포함한 셸 호출 (전체 호출 결과; 개별 실행 여부는 미확인):")
-        for e, line in ops[-args.files:]:
+        for e, line in ops[-args.ops:]:
             res = e.get("result")
             if res is None:
                 st = "결과 없음"
             elif res.get("interrupted"):
                 st = "중단됨"
             elif res.get("background"):
-                st = "실행 중"
+                st = "백그라운드 실행"
             else:
                 st = "호출 실패" if res.get("error") else "호출 정상 반환"
             mark = " [rewound]" if e.get("off") else ""
             print(f"          #{e['n']} {clock.fmt(e['ts'])} {st}{mark}  {redact(one_line(line, 140))}")
-        if len(ops) > args.files:
-            print(f"          … {len(ops) - args.files} earlier op(s) omitted")
+        if len(ops) > args.ops:
+            print(f"          … 이전 호출 {len(ops) - args.ops}개 생략")
     sub = s.path.parent / sid / "subagents"
     if sub.is_dir():
         metas = sorted(sub.glob("agent-*.meta.json"))
@@ -974,6 +1000,7 @@ def main(argv=None):
     p.add_argument("session")
     p.add_argument("--width", type=int, default=500)
     p.add_argument("--files", type=int, default=15)
+    p.add_argument("--ops", type=int, default=15, help="max git/sync shell calls to list")
 
     p = sub.add_parser("timeline", help="numbered event list")
     p.add_argument("session")

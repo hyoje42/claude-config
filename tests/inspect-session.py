@@ -42,6 +42,28 @@ class StateOpsTests(unittest.TestCase):
                 self.assertNotIn("state ops", out)
                 self.assertNotIn("git·sync 명령 후보", out)
 
+    def test_commands_after_keywords_prefixes_and_mid_word_hash_are_detected(self):
+        for command in [
+            "curl http://x/#a; git push",
+            "echo a#b && git push",
+            "if true; then git commit -m x; fi",
+            "for r in a b; do git push origin $r; done",
+            "{ git push; }",
+            "! git push",
+            "sudo -u me git push",
+            "env FOO=1 git push",
+            "git --no-pager -C dir push",
+            "git pull --rebase",
+            "bash ./claude-sync-to-home",
+        ]:
+            with self.subTest(command=command):
+                self.assertIn("git·sync 명령 후보", self.overview(command))
+
+    def test_hash_at_word_start_is_still_a_comment(self):
+        for command in ["echo hi # git push", "echo hi;# git push"]:
+            with self.subTest(command=command):
+                self.assertNotIn("git·sync 명령 후보", self.overview(command))
+
     def test_compound_call_keeps_conditions_and_labels_only_call_result(self):
         command = "false && git push origin main; true"
         out = self.overview(command)
@@ -50,7 +72,7 @@ class StateOpsTests(unittest.TestCase):
 
     def test_background_and_interrupted_calls_are_not_success(self):
         out = self.overview("git push origin main", backgroundTaskId="task-1")
-        self.assertIn("실행 중  git push", out)
+        self.assertIn("백그라운드 실행  git push", out)
         out = self.overview("git push origin main", interrupted=True)
         self.assertIn("중단됨  git push", out)
 

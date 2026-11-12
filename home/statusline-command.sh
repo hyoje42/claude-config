@@ -171,14 +171,24 @@ spend="\033[00;35m\$$(usd "$json_cost")\033[00m"
 
 line2="${model_tag} ${ctx} ${sep} ${tokens} ${sep} ${spend}"
 
-# Absent on this account today, but rendered automatically if the API starts
-# reporting subscription rate limits. Truncated to whole percent: the API
-# sends raw floats (e.g. 7.000000001).
+# Rendered only when the API reports subscription rate limits. Shown as the
+# share remaining (100 - used_percentage), rounded to whole percent and
+# clamped to 0..100: the API sends raw floats (e.g. 7.000000001), and
+# truncating the remainder would print 92% for 7.000000001% used.
+# Pure shell (no awk) for the same per-render reason as human() below.
+left_pct() {
+  local v=0 f
+  if [[ $1 =~ ^([0-9]+)(\.([0-9]+))?$ ]]; then
+    f="${BASH_REMATCH[3]}000000"
+    v=$(( 100 - 10#${BASH_REMATCH[1]} ))
+    (( 10#${f:0:6} > 500000 )) && v=$(( v - 1 ))
+  fi
+  (( v < 0 )) && v=0; (( v > 100 )) && v=100
+  printf '%d' "$v"
+}
 limits=""
-[ -n "$rl5" ] && { rl5=${rl5%%.*}; rl5=${rl5:-0}; }
-[ -n "$rl7" ] && { rl7=${rl7%%.*}; rl7=${rl7:-0}; }
-[ -n "$rl5" ] && limits="${limits} \033[02m5h\033[00m ${rl5}%"
-[ -n "$rl7" ] && limits="${limits} \033[02m7d\033[00m ${rl7}%"
-[ -n "$limits" ] && line2="${line2} ${sep}${limits}"
+[ -n "$rl5" ] && limits="${limits} \033[02m5h\033[00m $(left_pct "$rl5")%"
+[ -n "$rl7" ] && limits="${limits} \033[02m7d\033[00m $(left_pct "$rl7")%"
+[ -n "$limits" ] && line2="${line2} ${sep}${limits} \033[02mleft\033[00m"
 
 printf "%b\n%b" "$line1" "$line2"

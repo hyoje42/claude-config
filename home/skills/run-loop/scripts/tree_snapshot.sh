@@ -6,9 +6,9 @@
 #   tree_snapshot.sh changed <snapshot>  print every path whose state differs from a saved
 #                                        snapshot, plus "!HEAD" / "!INDEX" if either moved
 #
-# A snapshot lists HEAD, an index fingerprint, and one content hash per file that differs
-# from HEAD or is untracked. Git-ignored files are left out. Under .loop/ only the grading
-# inputs (context and its draft, intent, spec, slices, gate results, change-set diff) are included.
+# A snapshot lists HEAD, an index fingerprint, and one content hash with the executable bit
+# per file that differs from HEAD or is untracked. Git-ignored files are left out. Under .loop/ only the grading
+# inputs (context and its draft, intent, spec, slices, gate results, change-set diff, gates/, evidence/) are included.
 # Paths containing newlines are not supported.
 set -euo pipefail
 
@@ -26,7 +26,7 @@ take() {
     list() { git ls-files -z --cached --others --exclude-standard; }
   fi
   list | sort -zu | while IFS= read -r -d '' f; do
-    local state
+    local state mode
     case "$f" in .loop/*) continue ;; esac
     if [ -L "$f" ]; then
       state="link:$(readlink -- "$f" | git hash-object --stdin)"
@@ -35,7 +35,10 @@ take() {
       state="dir:$(git -C "$f" rev-parse -q --verify HEAD 2>/dev/null || echo none)"
       state="$state:$(git -C "$f" status --porcelain -uall 2>/dev/null | git hash-object --stdin)"
     elif [ -e "$f" ]; then
-      state=$(git hash-object -- "$f")
+      # The executable bit is part of the state: git hash-object covers content only.
+      mode=644
+      if [ -x "$f" ]; then mode=755; fi
+      state="$mode:$(git hash-object -- "$f")"
     else
       state=deleted
     fi
@@ -48,6 +51,14 @@ take() {
            .loop/*/5a-result.md .loop/*/5b-changes.diff; do
     if [ -f "$g" ]; then printf 'FILE %s %s\n' "$(git hash-object -- "$g")" "$g"; fi
   done
+  # Gate files and judge evidence the orchestrator wrote: .loop/<task>/gates/** and evidence/**.
+  if [ -d .loop ]; then
+    find .loop -mindepth 3 -type f \( -path '.loop/*/gates/*' -o -path '.loop/*/evidence/*' \) -print0 | sort -z | while IFS= read -r -d '' g; do
+      local gmode=644
+      if [ -x "$g" ]; then gmode=755; fi
+      printf 'FILE %s:%s %s\n' "$gmode" "$(git hash-object -- "$g")" "$g"
+    done
+  fi
 }
 
 changed() {

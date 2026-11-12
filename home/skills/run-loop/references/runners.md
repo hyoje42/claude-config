@@ -6,7 +6,7 @@ Launch with the Agent tool.
 
 - Pass `subagent_type`, `model`, and `effort` only when the roster sets them. A user-written roster is the explicit instruction that permits passing `effort`.
 - `model` takes only the aliases the Agent tool lists. If the roster names something else, report it instead of substituting.
-- Never use `subagent_type: "fork"` for `plan-reviewer` or `reviewer-5b`.
+- Never use `subagent_type: "fork"` for `plan-reviewer` or `verifier`.
 - Launch independent slices in one message. Completion arrives as a notification; do not poll.
 - An Agent-tool worker keeps its full toolset whatever the prompt says, and the tool does not report which model ran. The integrity checks in SKILL.md are the only control on this runner.
 - `view=tmux` has no effect: Agent runs expose no output stream.
@@ -29,7 +29,7 @@ claude -p --no-session-persistence --permission-prompts none --permission-mode d
   --tools "Read,Grep,Glob,Bash" \
   --allowedTools "Read Grep Glob Bash(git diff *) Bash(git log *) Bash(git show *)" \
   --output-format stream-json --verbose \
-  < "$TASK/prompts/reviewer-5b.md" > "$TASK/logs/reviewer-5b.jsonl" 2> "$TASK/logs/reviewer-5b.err"
+  < "$TASK/prompts/verifier.md" > "$TASK/logs/verifier.jsonl" 2> "$TASK/logs/verifier.err"
 ```
 
 Implementer:
@@ -62,7 +62,7 @@ jq -r 'select(.type=="system" and .subtype=="init") | .model' "$TASK/logs/<role>
 - No `result` event, or `is_error: true`, is a failed run, not a 5-a attempt (SKILL.md, [4] step 4).
 - A denial means the allowlist is missing something the work needs, or the worker tried something out of scope. Decide which before retrying; do not widen the allowlist to make a denial go away.
 - A reviewer that was denied when it tried to re-run a gate is working as intended: gates can write files, so it judges from `5a-result.md` instead.
-- Record the model in `state.md`. If it shows that `reviewer-5b` and `implementer` ran on the same model, apply the same-model rule in SKILL.md.
+- Record the model in `state.md`. If it shows that `verifier` and `implementer` ran on the same model, apply the same-model rule in SKILL.md.
 
 ## view=tmux
 

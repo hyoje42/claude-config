@@ -19,8 +19,8 @@ Ask only outcome-changing unknowns that the repo and context file could not answ
 - Goal restated in one sentence.
 - Spec checklist (IDs and one line each), with the facts, hypotheses, decisions, and unknowns kept separate.
 - Slots: 5-a gates, 5-b judges, done definition, K, and risk tier, each marked as from the context file or a default.
-- Mode the run will use. If on mode was requested and refused, name the failed precondition.
-- Resolved roster: runner and model per role, with any model that is assumed rather than known marked as such.
+- Mode the run will use. If auto mode was requested and refused, name the failed precondition.
+- Resolved roster: runner and model per role, with any model that is assumed rather than known marked as such. Say that it can be changed here in plain words, and show how you read any roster request made in the invocation.
 - Slice plan: slices, parallel groups, dependencies.
 - Plan-review result: verdict per round, what it caught and fixed, findings applied without re-review after a failed last round, and any open disagreement.
 - A context-file draft, if [0] created one.
@@ -30,7 +30,7 @@ Ask only outcome-changing unknowns that the repo and context file could not answ
 
 - Verdict of the judges and the recommendation.
 - 5-a results: commands and exit codes.
-- 5-b results: deterministic judges, then `reviewer-5b` findings with severity.
+- 5-b results: deterministic judges, then `verifier` findings with severity.
 - Every finding fixed automatically, with the spec item it cited and how it was fixed.
 - Spec gaps, spec items the reviewer could not check, and residual risks. Each spec gap needs a decision: add it to the spec, or accept the work as is.
 - Reviewer notes, copied as written.
@@ -45,6 +45,6 @@ Ask only outcome-changing unknowns that the repo and context file could not answ
 - What was tried, and the evidence (attempt count, gate output excerpt, finding).
 - Options to continue, with a recommendation.
 
-## Delivered Report (on mode)
+## Delivered Report (auto mode)
 
 The same content as the final package, written to `6-report.md` and summarized at the end of the run. The user reviews it after the fact and decides on `6-context-proposal.md` and the commit.

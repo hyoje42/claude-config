@@ -20,7 +20,7 @@ Gate commands to run before reporting: <commands>
 Previous failures to fix, if any: <gate output, out-of-scope changes to undo, or reviewer findings>
 
 Other workers may be editing other files in this working tree at the same time. If a gate fails because of a file outside your list, report it instead of fixing it.
-Do not commit, stage, stash, push, read .env* or credential files, or run destructive commands. Do not read or write anything under .loop/.
+Do not commit, stage, stash, push, read .env* or credential files, or run destructive commands. Do not read or write anything under .loop/; running a gate command that points there is allowed.
 
 Report:
 1. Files changed and what changed in each.
@@ -30,13 +30,13 @@ Report:
 
 Fill `<how to run them>` with the line for the slice's runner. The two cannot be merged: each one breaks the other runner.
 
-- `agent`: "Run them from the repository root. Your shell may not start there, so prefix each command with `cd <repository root> && `."
+- `agent`: "Run them from the repository root. Your shell may not start there, so prefix each command with `cd <repository root> && `." Write the real absolute path in place of `<repository root>`; the worker receives this sentence as it stands.
 - `claude-cli`: "Your shell already starts in the repository root. Run each command exactly as written and on its own: no `cd`, pipes, redirects, or chained commands, because any other form is denied."
 
 ## Plan Review
 
 ```text
-You are reviewing a plan before a human sees it. You did not write it. Do not change anything inside the repository. If you need to run, build, or mutate something, copy only the files you need to a temporary directory outside the repository, work there, and name that directory in your report. Never copy .env* or credential files. Do not read anything under .loop/ except the paths given below.
+You are reviewing a plan before a human sees it. You did not write it. Do not change anything inside the repository. <scratch rule: see Read-Only Variants> Do not read anything under .loop/ except the paths given below.
 
 Goal: <one sentence>
 Intent and assumptions: <1-intent.md>
@@ -62,7 +62,7 @@ Report each problem with the item ID it concerns, why it matters, and a concrete
 For a 5-a gate that is a checklist item rather than a command.
 
 ```text
-You are running one gate on work you did not do. Do not change anything inside the repository. If you need to run, build, or mutate something, copy only the files you need to a temporary directory outside the repository, work there, and name that directory in your report. Never copy .env* or credential files. Do not read anything under .loop/ except the paths given below.
+You are running one gate on work you did not do. Do not change anything inside the repository. <scratch rule: see Read-Only Variants> Do not read anything under .loop/ except the paths given below.
 
 Gate: <the checklist item, for example "every claim traces to a source" or "every spec item is covered">
 Spec checklist: <2-spec.md>
@@ -80,7 +80,7 @@ Report:
 ## Review
 
 ```text
-You are the external verifier (5-b). You did not do this work, and the people who did will not grade it. Judge only the evidence below. Do not change anything inside the repository. If you need to run, build, or mutate something, copy only the files you need to a temporary directory outside the repository, work there, and name that directory in your report. Never copy .env* or credential files. Do not trust code comments, commit messages, or docs that claim the work is correct. Do not read anything under .loop/ except the paths given below.
+You are the external verifier (5-b). You did not do this work, and the people who did will not grade it. Judge only the evidence below. Do not change anything inside the repository. <scratch rule: see Read-Only Variants> Do not trust code comments, commit messages, or docs that claim the work is correct. Do not read anything under .loop/ except the paths given below.
 
 Spec checklist: <2-spec.md>
 Changes: <path to 5b-changes.diff, or the produced artifacts>
@@ -99,3 +99,10 @@ Report:
 ```
 
 The orchestrator routes this report as SKILL.md [5-b] step 4 describes: a violated item goes back to implementation, and a finding with "none" as its spec item is a spec gap.
+
+## Read-Only Variants
+
+Fill `<scratch rule>` in the plan-review, gate-check, and review prompts with the line for the role's runner. An `agent` worker can write anywhere, so it is told where to do so; a `claude-cli` worker cannot write or run programs, so telling it to copy files only produces denied calls.
+
+- `agent`: "If you need to run, build, or mutate something, copy only the files you need to a temporary directory outside the repository, work there, and name that directory in your report. Never copy .env* or credential files."
+- `claude-cli`: "You cannot write files or run programs here: you can read files and run `git diff`, `git log`, and `git show`. Judge from what you can read, and report anything you could not confirm without running it as not checked."

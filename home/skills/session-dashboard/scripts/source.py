@@ -262,6 +262,20 @@ class Adapter:
         lineage = hashlib.sha256(json.dumps(abandoned, ensure_ascii=False).encode()).hexdigest()
         return active, lineage, broken
 
+    @staticmethod
+    def _local_record(row):
+        """Meta, compaction-summary, and local-command user records are not conversation turns."""
+        if row.get("isMeta") or row.get("isCompactSummary"):
+            return True
+        if row.get("type") != "user":
+            return False
+        content = (row.get("message") or {}).get("content")
+        if isinstance(content, list):
+            content = next((block.get("text") for block in content
+                            if isinstance(block, dict) and block.get("type") == "text"), None)
+        return isinstance(content, str) and bool(
+            re.match(r"\s*<(?:local-command-[a-z]+|command-name|command-message|command-args)\b", content))
+
     def read(self, path, checkpoints=()):
         data, file_stat, observation = self.bounded(path, checkpoints=checkpoints)
         warnings, records, malformed = [], [], 0
@@ -309,7 +323,9 @@ class Adapter:
             self._title(sid)
             subagent = any(bool(row.get("isSidechain") or row.get("agentId")) for row in records)
             active_records = [row for row in records if row.get("uuid") in active]
-            cwd = next((row["cwd"] for row in reversed(active_records)
+            # Bash `cd` moves the per-record cwd mid-session, so the project is the
+            # first recorded cwd (where the session started), not the latest one.
+            cwd = next((row["cwd"] for row in records
                         if isinstance(row.get("cwd"), str) and row["cwd"].strip()), None)
             # A record without a cwd stays unassigned, including a renamed folder.
             last_activity = next((row["timestamp"] for row in reversed(active_records)
@@ -360,7 +376,10 @@ class Adapter:
             observation["logical"]["lineage"] = lineage
             revision = {**observation["logical"], "identity": list(file_stat[:2])}
             first = next((event["text"] for event in events if event["kind"] == "user"), "")
-            last_record = next((row for row in reversed(active_records) if row.get("type") in {"user", "assistant"}), {})
+            # Sessions usually end with `/exit` output or other local-command and
+            # meta user records; those say nothing about the last conversational turn.
+            last_record = next((row for row in reversed(active_records)
+                                if row.get("type") in {"user", "assistant"} and not self._local_record(row)), {})
             stop_reason = (last_record.get("message") or {}).get("stop_reason")
             recorded_turn = {"end_turn": "응답 턴 종료 기록 있음", "tool_use": "도구 호출 기록 있음",
                              "max_tokens": "출력 한도 도달 기록 있음"}.get(stop_reason, "불명")

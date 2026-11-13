@@ -961,6 +961,29 @@ raise SystemExit(dashboard.main(sys.argv[4:]))
         self.append(path, [record("custom-title", customTitle="")])
         self.assertEqual(next(c for c in collector.collect()["sessions"] if c["id"] == SID)["title"], "바뀐 제목")
 
+    def test_project_scope_uses_session_start_cwd_after_directory_changes(self):
+        elsewhere = self.root / "elsewhere"
+        elsewhere.mkdir()
+        self.write([message("user", "started here"), message("assistant", "moved away", cwd=str(elsewhere))])
+        self.write([message("user", "started elsewhere"), message("assistant", "moved in", cwd=str(self.project))],
+                   OTHER, cwd=elsewhere)
+        cards = self.collector().collect()["sessions"]
+        self.assertEqual([card["id"] for card in cards], [SID])
+        self.assertEqual(cards[0]["cwd"], str(self.project))
+
+    def test_recorded_turn_skips_trailing_local_command_and_meta_records(self):
+        reply = message("assistant", "Recorded response")
+        reply["message"]["stop_reason"] = "end_turn"
+        caveat = message("user", "Caveat: local commands follow", isMeta=True)
+        command = record("user", message={"role": "user", "content": "<command-name>/exit</command-name>"})
+        output = record("user", message={"role": "user", "content": "<local-command-stdout>Bye!</local-command-stdout>"})
+        summary = message("user", "This session is being continued", isCompactSummary=True)
+        self.write([message("user", "Finish goal"), reply, summary, caveat, command, output])
+        self.assertIn("턴 종료", self.collector().collect()["sessions"][0]["recorded_turn"])
+        self.write([message("user", "Finish goal"), reply, message("user", "Follow-up request")], OTHER)
+        cards = {card["id"]: card for card in self.collector().collect()["sessions"]}
+        self.assertEqual(cards[OTHER]["recorded_turn"], "불명")
+
     def test_state_honesty_and_unknown_self(self):
         reply = message("assistant", "Recorded response")
         reply["message"]["stop_reason"] = "end_turn"
